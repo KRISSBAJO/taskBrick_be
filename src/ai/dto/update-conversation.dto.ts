@@ -2,7 +2,7 @@ import { ApiPropertyOptional } from '@nestjs/swagger';
 import { AiConversationStatus } from '@prisma/client';
 import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 
-export class UpdateConversationDto {
+export class UpdateAiConversationDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

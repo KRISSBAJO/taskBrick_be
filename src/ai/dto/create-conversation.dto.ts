@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsOptional, IsString, MaxLength } from 'class-validator';
 
-export class CreateConversationDto {
+export class CreateAiConversationDto {
   @ApiProperty()
   @IsString()
   agentId!: string;

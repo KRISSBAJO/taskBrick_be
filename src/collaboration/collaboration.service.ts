@@ -12,12 +12,12 @@ import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { ConversationMemberDto } from './dto/conversation-member.dto';
 import { ConversationQueryDto } from './dto/conversation-query.dto';
-import { CreateConversationDto } from './dto/create-conversation.dto';
+import { CreateCollaborationConversationDto } from './dto/create-conversation.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { ForwardMessageDto } from './dto/forward-message.dto';
 import { MessageReactionDto } from './dto/message-reaction.dto';
 import { NotificationQueryDto } from './dto/notification-query.dto';
-import { UpdateConversationDto } from './dto/update-conversation.dto';
+import { UpdateCollaborationConversationDto } from './dto/update-conversation.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 import { RealtimeGateway } from './realtime.gateway';
 
@@ -143,7 +143,7 @@ export class CollaborationService {
 
   async createConversation(
     user: AuthenticatedUser,
-    dto: CreateConversationDto,
+    dto: CreateCollaborationConversationDto,
     meta: RequestMeta
   ) {
     const memberIds = [...new Set([user.id, ...dto.memberIds])];
@@ -192,7 +192,7 @@ export class CollaborationService {
   async updateConversation(
     user: AuthenticatedUser,
     conversationId: string,
-    dto: UpdateConversationDto,
+    dto: UpdateCollaborationConversationDto,
     meta: RequestMeta
   ) {
     const before = await this.getConversationForMemberOrThrow(user, conversationId);

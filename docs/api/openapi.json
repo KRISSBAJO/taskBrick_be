@@ -12554,7 +12554,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateConversationDto"
+                "$ref": "#/components/schemas/CreateCollaborationConversationDto"
               }
             }
           }
@@ -12620,7 +12620,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateConversationDto"
+                "$ref": "#/components/schemas/UpdateCollaborationConversationDto"
               }
             }
           }
@@ -26577,7 +26577,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CreateConversationDto"
+                "$ref": "#/components/schemas/CreateAiConversationDto"
               }
             }
           }
@@ -26643,7 +26643,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/UpdateConversationDto"
+                "$ref": "#/components/schemas/UpdateAiConversationDto"
               }
             }
           }
@@ -31715,51 +31715,35 @@
           "value"
         ]
       },
-      "CreateConversationDto": {
+      "CreateCollaborationConversationDto": {
         "type": "object",
         "properties": {
-          "agentId": {
-            "type": "string"
-          },
           "title": {
             "type": "string"
           },
-          "contextType": {
-            "type": "string"
+          "isGroup": {
+            "type": "boolean",
+            "default": false
           },
-          "contextId": {
-            "type": "string"
-          },
-          "metadata": {
-            "type": "object"
+          "memberIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
-          "agentId"
+          "memberIds"
         ]
       },
-      "UpdateConversationDto": {
+      "UpdateCollaborationConversationDto": {
         "type": "object",
         "properties": {
           "title": {
             "type": "string"
           },
-          "status": {
-            "type": "string",
-            "enum": [
-              "OPEN",
-              "ARCHIVED",
-              "LOCKED"
-            ]
-          },
-          "contextType": {
-            "type": "string"
-          },
-          "contextId": {
-            "type": "string"
-          },
-          "metadata": {
-            "type": "object"
+          "isGroup": {
+            "type": "boolean"
           }
         }
       },
@@ -36153,6 +36137,54 @@
           },
           "enabled": {
             "type": "boolean"
+          }
+        }
+      },
+      "CreateAiConversationDto": {
+        "type": "object",
+        "properties": {
+          "agentId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "contextType": {
+            "type": "string"
+          },
+          "contextId": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "agentId"
+        ]
+      },
+      "UpdateAiConversationDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "ARCHIVED",
+              "LOCKED"
+            ]
+          },
+          "contextType": {
+            "type": "string"
+          },
+          "contextId": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object"
           }
         }
       },

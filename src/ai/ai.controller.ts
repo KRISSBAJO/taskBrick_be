@@ -33,12 +33,12 @@ import { ChatDto } from './dto/chat.dto';
 import { ConversationQueryDto } from './dto/conversation-query.dto';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { CreateAiActionDto } from './dto/create-ai-action.dto';
-import { CreateConversationDto } from './dto/create-conversation.dto';
+import { CreateAiConversationDto } from './dto/create-conversation.dto';
 import { KnowledgeSearchDto } from './dto/knowledge-search.dto';
 import { ProjectAiDto } from './dto/project-ai.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
-import { UpdateConversationDto } from './dto/update-conversation.dto';
+import { UpdateAiConversationDto } from './dto/update-conversation.dto';
 
 @ApiTags('ai')
 @Controller('ai')
@@ -187,7 +187,7 @@ export class AiController {
   @ApiOperation({ summary: 'Create an AI conversation' })
   createConversation(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: CreateConversationDto,
+    @Body() dto: CreateAiConversationDto,
     @Req() request: Request
   ) {
     return this.aiService.createConversation(user, dto, this.getRequestMeta(request));
@@ -215,7 +215,7 @@ export class AiController {
   updateConversation(
     @CurrentUser() user: AuthenticatedUser,
     @Param('conversationId') conversationId: string,
-    @Body() dto: UpdateConversationDto,
+    @Body() dto: UpdateAiConversationDto,
     @Req() request: Request
   ) {
     return this.aiService.updateConversation(

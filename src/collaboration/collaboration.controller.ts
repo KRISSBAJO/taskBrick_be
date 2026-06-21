@@ -26,11 +26,11 @@ import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { CollaborationService } from './collaboration.service';
 import { ConversationMemberDto } from './dto/conversation-member.dto';
 import { ConversationQueryDto } from './dto/conversation-query.dto';
-import { CreateConversationDto } from './dto/create-conversation.dto';
+import { CreateCollaborationConversationDto } from './dto/create-conversation.dto';
 import { CreateMessageDto } from './dto/create-message.dto';
 import { ForwardMessageDto } from './dto/forward-message.dto';
 import { MessageReactionDto } from './dto/message-reaction.dto';
-import { UpdateConversationDto } from './dto/update-conversation.dto';
+import { UpdateCollaborationConversationDto } from './dto/update-conversation.dto';
 import { UpdateMessageDto } from './dto/update-message.dto';
 
 @ApiTags('collaboration')
@@ -69,7 +69,7 @@ export class CollaborationController {
   @ApiCreatedResponse({ description: 'Created conversation' })
   createConversation(
     @CurrentUser() user: AuthenticatedUser,
-    @Body() dto: CreateConversationDto,
+    @Body() dto: CreateCollaborationConversationDto,
     @Req() request: Request
   ) {
     return this.collaborationService.createConversation(user, dto, this.getRequestMeta(request));
@@ -95,7 +95,7 @@ export class CollaborationController {
   updateConversation(
     @CurrentUser() user: AuthenticatedUser,
     @Param('conversationId') conversationId: string,
-    @Body() dto: UpdateConversationDto,
+    @Body() dto: UpdateCollaborationConversationDto,
     @Req() request: Request
   ) {
     return this.collaborationService.updateConversation(

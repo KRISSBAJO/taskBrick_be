@@ -1,7 +1,7 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { IsBoolean, IsOptional, IsString, MaxLength } from 'class-validator';
 
-export class UpdateConversationDto {
+export class UpdateCollaborationConversationDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()

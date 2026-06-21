@@ -28,12 +28,12 @@ import { ChatDto } from './dto/chat.dto';
 import { ConversationQueryDto } from './dto/conversation-query.dto';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { CreateAiActionDto } from './dto/create-ai-action.dto';
-import { CreateConversationDto } from './dto/create-conversation.dto';
+import { CreateAiConversationDto } from './dto/create-conversation.dto';
 import { KnowledgeSearchDto } from './dto/knowledge-search.dto';
 import { ProjectAiDto } from './dto/project-ai.dto';
 import { SendMessageDto } from './dto/send-message.dto';
 import { UpdateAgentDto } from './dto/update-agent.dto';
-import { UpdateConversationDto } from './dto/update-conversation.dto';
+import { UpdateAiConversationDto } from './dto/update-conversation.dto';
 
 interface RequestMeta {
   ipAddress?: string | null;
@@ -463,7 +463,7 @@ export class AiService {
 
   async createConversation(
     user: AuthenticatedUser,
-    dto: CreateConversationDto,
+    dto: CreateAiConversationDto,
     meta: RequestMeta
   ) {
     this.assertCanReadAi(user);
@@ -499,7 +499,7 @@ export class AiService {
   async updateConversation(
     user: AuthenticatedUser,
     conversationId: string,
-    dto: UpdateConversationDto,
+    dto: UpdateAiConversationDto,
     meta: RequestMeta
   ) {
     this.assertCanReadAi(user);

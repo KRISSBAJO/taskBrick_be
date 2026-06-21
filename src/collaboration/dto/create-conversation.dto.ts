@@ -9,7 +9,7 @@ import {
   MaxLength
 } from 'class-validator';
 
-export class CreateConversationDto {
+export class CreateCollaborationConversationDto {
   @ApiPropertyOptional()
   @IsOptional()
   @IsString()
