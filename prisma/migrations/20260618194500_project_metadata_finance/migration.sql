@@ -1,0 +1,16 @@
+ALTER TABLE "Project"
+ADD COLUMN "currency" TEXT NOT NULL DEFAULT 'USD',
+ADD COLUMN "contractValue" DECIMAL(14, 2) NOT NULL DEFAULT 0,
+ADD COLUMN "clientName" TEXT,
+ADD COLUMN "clientEmail" TEXT,
+ADD COLUMN "clientPhone" TEXT,
+ADD COLUMN "locationName" TEXT,
+ADD COLUMN "addressLine1" TEXT,
+ADD COLUMN "addressLine2" TEXT,
+ADD COLUMN "city" TEXT,
+ADD COLUMN "state" TEXT,
+ADD COLUMN "country" TEXT,
+ADD COLUMN "postalCode" TEXT,
+ADD COLUMN "timezone" TEXT,
+ADD COLUMN "billingCode" TEXT,
+ADD COLUMN "costCenter" TEXT;

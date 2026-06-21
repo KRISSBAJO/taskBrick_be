@@ -1,0 +1,15 @@
+node_modules
+dist
+coverage
+.git
+.github
+.env
+.env.local
+.env.*.local
+.codex-*.log
+npm-debug.log*
+Dockerfile
+docker-compose.yml
+README.md
+docs
+uploads

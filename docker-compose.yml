@@ -1,0 +1,36 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: taskbricks-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: taskbricks
+      POSTGRES_USER: taskbricks
+      POSTGRES_PASSWORD: taskbricks
+    ports:
+      - "55432:5432"
+    volumes:
+      - taskbricks_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U taskbricks -d taskbricks"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: taskbricks-redis
+    restart: unless-stopped
+    ports:
+      - "6380:6379"
+    volumes:
+      - taskbricks_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  taskbricks_postgres_data:
+  taskbricks_redis_data:

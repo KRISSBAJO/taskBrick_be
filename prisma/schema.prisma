@@ -1,0 +1,3797 @@
+// schema.prisma
+// TaskBricks - Enterprise Work Management Platform
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+/* =========================
+   ENUMS
+========================= */
+
+enum TenantStatus {
+  ACTIVE
+  SUSPENDED
+  TRIAL
+  CANCELLED
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum MfaFactorType {
+  TOTP
+}
+
+enum MfaFactorStatus {
+  PENDING
+  ACTIVE
+  DISABLED
+}
+
+enum TrustedDeviceStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum AuthLoginMethod {
+  PASSWORD
+  GOOGLE
+  MICROSOFT
+  OIDC
+  SAML
+}
+
+enum LoginAttemptStatus {
+  SUCCESS
+  FAILED
+  MFA_REQUIRED
+  MFA_FAILED
+  BLOCKED
+}
+
+enum SsoProviderType {
+  GOOGLE
+  MICROSOFT
+  OIDC
+  SAML
+}
+
+enum SsoProviderStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum PlatformAdminLevel {
+  OWNER
+  ADMIN
+  SUPPORT
+  AUDITOR
+}
+
+enum PlatformAdminStatus {
+  ACTIVE
+  REVOKED
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  ARCHIVED
+}
+
+enum ProjectStakeholderInfluence {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum ProjectDependencyStatus {
+  OPEN
+  BLOCKED
+  RESOLVED
+  CANCELLED
+}
+
+enum ProjectDecisionStatus {
+  PROPOSED
+  DECIDED
+  SUPERSEDED
+  REOPENED
+}
+
+enum ProjectChangeRequestStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  IMPLEMENTED
+  CANCELLED
+}
+
+enum TaskStatus {
+  BACKLOG
+  TODO
+  IN_PROGRESS
+  REVIEW
+  TESTING
+  DONE
+  CANCELLED
+}
+
+enum TaskPriority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+  CRITICAL
+}
+
+enum TaskType {
+  TASK
+  BUG
+  STORY
+  EPIC
+  FEATURE
+  INCIDENT
+  APPROVAL
+  CHANGE_REQUEST
+  MILESTONE
+}
+
+enum Visibility {
+  PRIVATE
+  TEAM
+  WORKSPACE
+  ORGANIZATION
+  PUBLIC
+}
+
+enum BillingStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELLED
+  EXPIRED
+}
+
+enum BillingEventStatus {
+  RECEIVED
+  PROCESSED
+  FAILED
+  IGNORED
+}
+
+enum UsageRecordSource {
+  SYSTEM
+  API
+  WEBHOOK
+  MANUAL
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+  PUSH
+  WEBHOOK
+  SLACK
+  TEAMS
+}
+
+enum NotificationDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum InternalMailFolder {
+  INBOX
+  SENT
+  DRAFTS
+  ARCHIVE
+  DELETED
+  JUNK
+  SNOOZED
+}
+
+enum InternalMailPriority {
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum InternalMailRecipientKind {
+  TO
+  CC
+  BCC
+}
+
+enum InternalMailboxType {
+  USER
+  SHARED
+  TEAM
+  SYSTEM
+}
+
+enum InternalMailboxStatus {
+  ACTIVE
+  SUSPENDED
+  ARCHIVED
+}
+
+enum InternalMailboxMemberRole {
+  OWNER
+  MANAGER
+  MEMBER
+}
+
+enum DocumentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+enum WorkflowRunStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ApprovalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum TimeEntryStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  LOCKED
+}
+
+enum TimesheetStatus {
+  DRAFT
+  SUBMITTED
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum IntegrationProvider {
+  GITHUB
+  GITLAB
+  BITBUCKET
+  SLACK
+  TEAMS
+  GOOGLE
+  MICROSOFT
+  ZOOM
+  WHATSAPP
+  EMAIL
+  SMS
+  STRIPE
+  PAYPAL
+  OPENAI
+  ANTHROPIC
+  ZAPIER
+  CUSTOM
+}
+
+enum IntegrationStatus {
+  ACTIVE
+  DISABLED
+  ERROR
+  REVOKED
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  DELIVERED
+  FAILED
+  CANCELLED
+}
+
+enum AiConversationStatus {
+  OPEN
+  ARCHIVED
+  LOCKED
+}
+
+enum AiMessageRole {
+  SYSTEM
+  USER
+  ASSISTANT
+  TOOL
+}
+
+enum AiRequestStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum AiActionStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum DashboardVisibility {
+  PRIVATE
+  TEAM
+  TENANT
+  PUBLIC
+}
+
+enum ReportStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum ReportExecutionStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+enum ReportExportStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  EXPIRED
+  CANCELLED
+}
+
+enum ReportExportFormat {
+  JSON
+  CSV
+  XLSX
+  PDF
+}
+
+enum ComplianceJobType {
+  DATA_EXPORT
+  DATA_DELETION
+  RETENTION_PURGE
+}
+
+enum ComplianceJobStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  QUEUED
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+  EXPIRED
+}
+
+enum SecurityEventSeverity {
+  INFO
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum SecurityEventStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  DISMISSED
+}
+
+enum ApiKeyStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+enum CustomFieldType {
+  TEXT
+  LONG_TEXT
+  NUMBER
+  CURRENCY
+  DATE
+  DATETIME
+  BOOLEAN
+  SINGLE_SELECT
+  MULTI_SELECT
+  USER
+  PROJECT
+  TASK
+  URL
+  EMAIL
+  PHONE
+  JSON
+  FORMULA
+}
+
+enum MeetingStatus {
+  SCHEDULED
+  LIVE
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  ARCHIVED
+}
+
+enum MeetingTypeCategory {
+  INTERNAL
+  CLIENT
+  SALES
+  SUPPORT
+  SPRINT
+  STANDUP
+  REVIEW
+  INTERVIEW
+  TRAINING
+  CUSTOM
+}
+
+enum MeetingLocationMode {
+  IN_PERSON
+  ONLINE
+  HYBRID
+  PHONE
+  TBD
+}
+
+enum MeetingApprovalStatus {
+  NOT_REQUIRED
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum MeetingAttendeeRole {
+  HOST
+  CO_HOST
+  REQUIRED
+  OPTIONAL
+  GUEST
+  OBSERVER
+}
+
+enum MeetingAttendeeStatus {
+  INVITED
+  ACCEPTED
+  DECLINED
+  TENTATIVE
+  ATTENDED
+  NO_SHOW
+  REMOVED
+}
+
+enum MeetingAgendaStatus {
+  OPEN
+  IN_PROGRESS
+  DONE
+  SKIPPED
+}
+
+enum MeetingReminderChannel {
+  IN_APP
+  EMAIL
+  WHATSAPP
+  SMS
+  WEBHOOK
+}
+
+enum MeetingReminderStatus {
+  PENDING
+  SCHEDULED
+  SENT
+  FAILED
+  CANCELLED
+}
+
+enum MeetingConferenceProvider {
+  NONE
+  MANUAL
+  GOOGLE_CALENDAR
+  GOOGLE_MEET
+  MICROSOFT_TEAMS
+  ZOOM
+  CUSTOM_URL
+}
+
+enum MeetingReminderJobStatus {
+  QUEUED
+  PROCESSING
+  SENT
+  FAILED
+  CANCELLED
+  DEAD_LETTER
+}
+
+enum MeetingAvailabilityScope {
+  USER
+  TEAM
+  TENANT
+}
+
+enum BookingPageScope {
+  TENANT
+  TEAM
+  USER
+}
+
+enum BookingRoutingStrategy {
+  DIRECT_HOST
+  ROUND_ROBIN
+  LEAST_BUSY
+  PRIORITY
+  DEPARTMENT
+}
+
+enum BookingFormFieldType {
+  TEXT
+  LONG_TEXT
+  EMAIL
+  PHONE
+  NUMBER
+  DATE
+  SINGLE_SELECT
+  MULTI_SELECT
+  BOOLEAN
+  URL
+}
+
+enum BookingRequestStatus {
+  PENDING_APPROVAL
+  CONFIRMED
+  REJECTED
+  CANCELLED
+  RESCHEDULED
+  EXPIRED
+}
+
+enum BookingTokenPurpose {
+  CANCEL
+  RESCHEDULE
+}
+
+/* =========================
+   TENANT / ORGANIZATION
+========================= */
+
+model Tenant {
+  id          String       @id @default(cuid())
+  name        String
+  slug        String       @unique
+  logoUrl     String?
+  website     String?
+  status      TenantStatus @default(TRIAL)
+
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+
+  users       User[]
+  workspaces  Workspace[]
+  teams       Team[]
+  projects    Project[]
+  roles       Role[]
+  permissions Permission[]
+  billing     Subscription?
+  usageRecords UsageRecord[]
+  billingEvents BillingEvent[]
+  auditLogs   AuditLog[]
+  integrations Integration[]
+  webhooks    Webhook[]
+  aiSettings  AiTenantSettings?
+  aiAgents    AiAgent[]
+  aiConversations AiConversation[]
+  aiMessages  AiMessage[]
+  aiUsageLogs AiUsageLog[]
+  aiActions   AiAction[]
+  dashboards  Dashboard[]
+  dashboardWidgets DashboardWidget[]
+  reports     Report[]
+  reportExecutions ReportExecution[]
+  reportExports ReportExport[]
+  securityPolicy SecurityPolicy?
+  securityEvents SecurityEvent[]
+  fileAssets  FileAsset[]
+  complianceJobs ComplianceJob[]
+  apiKeys     ApiKey[]
+  authSessions AuthSession[]
+  passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  mfaFactors UserMfaFactor[]
+  backupCodes UserBackupCode[]
+  trustedDevices TrustedDevice[]
+  mfaChallenges MfaChallenge[]
+  loginHistory LoginHistory[]
+  ssoProviders SsoProvider[]
+  ssoAccounts UserSsoAccount[]
+  ssoLoginStates SsoLoginState[]
+  savedTaskViews TaskSavedView[]
+  customFields CustomField[]
+  platformAuditLogs PlatformAuditLog[]
+  meetingTypes MeetingType[]
+  meetings Meeting[]
+  meetingAttendees MeetingAttendee[]
+  meetingAgendaItems MeetingAgendaItem[]
+  meetingReminders MeetingReminder[]
+  meetingReminderJobs MeetingReminderJob[]
+  meetingIntegrationSettings MeetingIntegrationSettings?
+  meetingAvailabilityWindows MeetingAvailabilityWindow[]
+  meetingBlackoutWindows MeetingBlackoutWindow[]
+  meetingActivities MeetingActivity[]
+  meetingComments MeetingComment[]
+  meetingDecisions MeetingDecision[]
+  meetingChecklistItems MeetingChecklistItem[]
+  bookingPages BookingPage[]
+  bookingFormFields BookingFormField[]
+  bookingRequests BookingRequest[]
+  internalMailThreads InternalMailThread[]
+  internalMailMessages InternalMailMessage[]
+  internalMailParticipants InternalMailParticipant[]
+  internalMailRecipients InternalMailRecipient[]
+  internalMailMailboxes InternalMailbox[]
+  internalMailMailboxAliases InternalMailboxAlias[]
+  internalMailMailboxMembers InternalMailboxMember[]
+
+  @@index([slug])
+}
+
+model Workspace {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  slug        String
+  description String?
+  icon        String?
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  projects    Project[]
+  teams       Team[]
+  customFields CustomField[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+}
+
+model Team {
+  id          String   @id @default(cuid())
+  tenantId    String
+  workspaceId String?
+  name        String
+  description String?
+
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id])
+  members     TeamMember[]
+  projects    Project[]
+  meetings    Meeting[]
+  meetingAvailabilityWindows MeetingAvailabilityWindow[]
+  meetingBlackoutWindows MeetingBlackoutWindow[]
+  bookingPages BookingPage[]
+  bookingRequests BookingRequest[]
+  internalMailMailboxes InternalMailbox[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+}
+
+model TeamMember {
+  id        String   @id @default(cuid())
+  teamId    String
+  userId    String
+  role      String?
+
+  team      Team     @relation(fields: [teamId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([teamId, userId])
+}
+
+/* =========================
+   USERS / AUTH / RBAC
+========================= */
+
+model User {
+  id              String     @id @default(cuid())
+  tenantId        String
+  email           String
+  passwordHash    String?
+  firstName       String
+  lastName        String
+  avatarUrl       String?
+  timezone        String?
+  locale          String?
+  status          UserStatus @default(INVITED)
+  emailVerifiedAt DateTime?
+  lastLoginAt     DateTime?
+  failedLoginAttempts Int     @default(0)
+  lockedUntil     DateTime?
+
+  tenant          Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roles           UserRole[]
+  authSessions    AuthSession[]
+  passwordResetTokens PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  mfaFactors      UserMfaFactor[]
+  backupCodes     UserBackupCode[]
+  trustedDevices  TrustedDevice[]
+  mfaChallenges   MfaChallenge[]
+  loginHistory    LoginHistory[]
+  ssoAccounts     UserSsoAccount[]
+  ssoLoginStates  SsoLoginState[]
+  teamMemberships TeamMember[]
+  projectMembers  ProjectMember[]
+  assignedTasks   TaskAssignee[]
+  reportedTasks   Task[]     @relation("TaskReporter")
+  comments        TaskComment[]
+  timeEntries     TimeEntry[]
+  activeTimers     TimeTimer[]
+  timesheets       Timesheet[] @relation("TimesheetOwner")
+  approvedTimesheets Timesheet[] @relation("TimesheetApprover")
+  notifications   Notification[]
+  skills          UserSkill[]
+  resourceAllocations ResourceAllocation[]
+  createdAiAgents AiAgent[] @relation("AiAgentCreator")
+  aiConversations AiConversation[]
+  aiMessages      AiMessage[]
+  aiUsageLogs     AiUsageLog[]
+  aiActions       AiAction[] @relation("AiActionRequester")
+  ownedDashboards Dashboard[] @relation("DashboardOwner")
+  createdReports  Report[] @relation("ReportCreator")
+  reportExecutions ReportExecution[] @relation("ReportRunner")
+  reportExports   ReportExport[] @relation("ReportExporter")
+  savedTaskViews   TaskSavedView[] @relation("TaskSavedViewOwner")
+  securityEvents SecurityEvent[] @relation("SecurityEventActor")
+  resolvedSecurityEvents SecurityEvent[] @relation("SecurityEventResolver")
+  requestedComplianceJobs ComplianceJob[] @relation("ComplianceJobRequester")
+  approvedComplianceJobs ComplianceJob[] @relation("ComplianceJobApprover")
+  apiKeys         ApiKey[] @relation("ApiKeyCreator")
+  uploadedFileAssets FileAsset[] @relation("FileAssetUploader")
+  platformAdminProfile PlatformAdmin? @relation("PlatformAdminUser")
+  platformAdminGrants PlatformAdmin[] @relation("PlatformAdminGrantor")
+  platformAdminRevocations PlatformAdmin[] @relation("PlatformAdminRevoker")
+  platformAuditLogs PlatformAuditLog[] @relation("PlatformAuditActor")
+  createdMeetingTypes MeetingType[] @relation("MeetingTypeCreator")
+  hostedMeetings Meeting[] @relation("MeetingHost")
+  createdMeetings Meeting[] @relation("MeetingCreator")
+  approvedMeetings Meeting[] @relation("MeetingApprover")
+  meetingAttendances MeetingAttendee[] @relation("MeetingAttendeeUser")
+  ownedMeetingAgendaItems MeetingAgendaItem[] @relation("MeetingAgendaOwner")
+  updatedMeetingLiveNotes Meeting[] @relation("MeetingLiveNotesUpdater")
+  meetingComments MeetingComment[] @relation("MeetingCommentAuthor")
+  ownedMeetingDecisions MeetingDecision[] @relation("MeetingDecisionOwner")
+  ownedMeetingChecklistItems MeetingChecklistItem[] @relation("MeetingChecklistOwner")
+  meetingAvailabilityWindows MeetingAvailabilityWindow[] @relation("MeetingAvailabilityOwner")
+  meetingBlackoutWindows MeetingBlackoutWindow[] @relation("MeetingBlackoutOwner")
+  meetingActivities MeetingActivity[] @relation("MeetingActivityActor")
+  ownedBookingPages BookingPage[] @relation("BookingPageOwner")
+  createdBookingPages BookingPage[] @relation("BookingPageCreator")
+  hostedBookingRequests BookingRequest[] @relation("BookingRequestHost")
+  createdInternalMailThreads InternalMailThread[] @relation("InternalMailThreadCreator")
+  sentInternalMailMessages InternalMailMessage[] @relation("InternalMailMessageSender")
+  internalMailParticipants InternalMailParticipant[] @relation("InternalMailParticipantUser")
+  internalMailRecipients InternalMailRecipient[] @relation("InternalMailRecipientUser")
+  internalMailbox InternalMailbox? @relation("InternalMailboxUser")
+  internalMailboxMemberships InternalMailboxMember[] @relation("InternalMailboxMemberUser")
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@unique([tenantId, email])
+  @@index([tenantId])
+  @@index([tenantId, status])
+}
+
+model PlatformAdmin {
+  id           String              @id @default(cuid())
+  userId       String              @unique
+  level        PlatformAdminLevel  @default(ADMIN)
+  status       PlatformAdminStatus @default(ACTIVE)
+  scopes       String[]            @default([])
+  grantedById  String?
+  revokedById  String?
+  revokedAt    DateTime?
+  notes        String?
+
+  user         User                @relation("PlatformAdminUser", fields: [userId], references: [id], onDelete: Cascade)
+  grantedBy    User?               @relation("PlatformAdminGrantor", fields: [grantedById], references: [id], onDelete: SetNull)
+  revokedBy    User?               @relation("PlatformAdminRevoker", fields: [revokedById], references: [id], onDelete: SetNull)
+
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([status, level])
+  @@index([userId, status])
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  isSystem    Boolean  @default(false)
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users       UserRole[]
+  permissions RolePermission[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, name])
+}
+
+model Permission {
+  id          String   @id @default(cuid())
+  tenantId    String
+  action      String
+  subject     String
+  description String?
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  roles       RolePermission[]
+
+  createdAt   DateTime @default(now())
+
+  @@unique([tenantId, action, subject])
+}
+
+model UserRole {
+  id     String @id @default(cuid())
+  userId String
+  roleId String
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role   Role   @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+}
+
+model RolePermission {
+  id           String @id @default(cuid())
+  roleId       String
+  permissionId String
+
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+}
+
+model AuthSession {
+  id               String   @id @default(cuid())
+  tenantId         String
+  userId           String
+  refreshTokenHash String   @unique
+  ipAddress        String?
+  userAgent        String?
+  authMethod       AuthLoginMethod @default(PASSWORD)
+  mfaVerifiedAt    DateTime?
+  trustedDeviceId  String?
+  deviceFingerprint String?
+  deviceName       String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  trustedDevice    TrustedDevice? @relation(fields: [trustedDeviceId], references: [id], onDelete: SetNull)
+
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@index([tenantId, userId])
+  @@index([userId, revokedAt])
+  @@index([tenantId, authMethod, createdAt])
+  @@index([trustedDeviceId])
+  @@index([expiresAt])
+}
+
+model UserMfaFactor {
+  id              String          @id @default(cuid())
+  tenantId        String
+  userId          String
+  type            MfaFactorType   @default(TOTP)
+  status          MfaFactorStatus @default(PENDING)
+  label           String?
+  secretEncrypted Json?
+  lastUsedAt      DateTime?
+  enabledAt       DateTime?
+  disabledAt      DateTime?
+
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@index([tenantId, userId, status])
+  @@index([userId, type, status])
+}
+
+model UserBackupCode {
+  id          String    @id @default(cuid())
+  tenantId    String
+  userId      String
+  codeHash    String    @unique
+  usedAt      DateTime?
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId, userId, usedAt])
+}
+
+model TrustedDevice {
+  id          String              @id @default(cuid())
+  tenantId    String
+  userId      String
+  tokenHash   String              @unique
+  status      TrustedDeviceStatus @default(ACTIVE)
+  name        String?
+  ipAddress   String?
+  userAgent   String?
+  lastUsedAt  DateTime?
+  expiresAt   DateTime
+  revokedAt   DateTime?
+
+  tenant      Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sessions    AuthSession[]
+
+  createdAt   DateTime            @default(now())
+  updatedAt   DateTime            @updatedAt
+
+  @@index([tenantId, userId, status])
+  @@index([expiresAt])
+}
+
+model MfaChallenge {
+  id          String    @id @default(cuid())
+  tenantId    String
+  userId      String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  usedAt      DateTime?
+  ipAddress   String?
+  userAgent   String?
+
+  tenant      Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime  @default(now())
+
+  @@index([tenantId, userId])
+  @@index([expiresAt])
+}
+
+model LoginHistory {
+  id                String             @id @default(cuid())
+  tenantId          String?
+  userId            String?
+  tenantSlug        String?
+  email             String
+  method            AuthLoginMethod    @default(PASSWORD)
+  status            LoginAttemptStatus
+  reason            String?
+  ipAddress         String?
+  userAgent         String?
+  deviceFingerprint String?
+  suspicious        Boolean            @default(false)
+  metadata          Json?
+
+  tenant            Tenant?            @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  user              User?              @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  createdAt         DateTime           @default(now())
+
+  @@index([tenantId, userId, createdAt])
+  @@index([tenantSlug, email, createdAt])
+  @@index([status, suspicious, createdAt])
+}
+
+model SsoProvider {
+  id                    String            @id @default(cuid())
+  tenantId              String
+  type                  SsoProviderType
+  status                SsoProviderStatus @default(DISABLED)
+  name                  String
+  issuerUrl             String?
+  authorizationUrl      String?
+  tokenUrl              String?
+  userInfoUrl           String?
+  redirectUri           String?
+  clientId              String?
+  clientSecretEncrypted Json?
+  scopes                String[]          @default([])
+  allowedDomains        String[]          @default([])
+  buttonLabel           String?
+  metadata              Json?
+  createdById           String?
+  updatedById           String?
+
+  tenant                Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  accounts              UserSsoAccount[]
+  loginStates           SsoLoginState[]
+
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+
+  @@unique([tenantId, type, name])
+  @@index([tenantId, type, status])
+}
+
+model SsoLoginState {
+  id              String      @id @default(cuid())
+  tenantId        String
+  userId          String?
+  providerId      String
+  stateHash       String      @unique
+  codeVerifier    String?
+  redirectUri     String
+  expiresAt       DateTime
+  usedAt          DateTime?
+  ipAddress       String?
+  userAgent       String?
+
+  tenant          Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user            User?       @relation(fields: [userId], references: [id], onDelete: SetNull)
+  provider        SsoProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime    @default(now())
+
+  @@index([tenantId, providerId])
+  @@index([expiresAt])
+}
+
+model UserSsoAccount {
+  id              String          @id @default(cuid())
+  tenantId        String
+  userId          String
+  providerId      String
+  providerType    SsoProviderType
+  providerUserId  String
+  email           String
+  displayName     String?
+  metadata        Json?
+  lastLoginAt     DateTime?
+
+  tenant          Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user            User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider        SsoProvider     @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@unique([tenantId, providerId, providerUserId])
+  @@index([tenantId, userId])
+  @@index([tenantId, email])
+}
+
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, userId])
+  @@index([expiresAt])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(cuid())
+  tenantId  String
+  userId    String
+  tokenHash String   @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, userId])
+  @@index([expiresAt])
+}
+
+/* =========================
+   PROJECTS
+========================= */
+
+model Project {
+  id          String        @id @default(cuid())
+  tenantId    String
+  workspaceId String
+  teamId      String?
+  key         String
+  name        String
+  description String?
+  status      ProjectStatus @default(PLANNING)
+  visibility  Visibility    @default(TEAM)
+  startDate   DateTime?
+  dueDate     DateTime?
+  completedAt DateTime?
+  progress    Int           @default(0)
+  currency    String        @default("USD")
+  contractValue Decimal     @default(0) @db.Decimal(14, 2)
+  clientName  String?
+  clientEmail String?
+  clientPhone String?
+  locationName String?
+  addressLine1 String?
+  addressLine2 String?
+  city        String?
+  state       String?
+  country     String?
+  postalCode  String?
+  timezone    String?
+  billingCode String?
+  costCenter  String?
+
+  tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  team        Team?      @relation(fields: [teamId], references: [id])
+
+  members     ProjectMember[]
+  tasks       Task[]
+  savedTaskViews TaskSavedView[]
+  customFields CustomField[]
+  sprints     Sprint[]
+  boards      Board[]
+  milestones  Milestone[]
+  risks       ProjectRisk[]
+  budgets     ProjectBudget[]
+  stakeholders ProjectStakeholder[]
+  dependencies ProjectDependency[]
+  decisions   ProjectDecision[]
+  changeRequests ProjectChangeRequest[]
+  documents   Document[]
+  timeEntries TimeEntry[]
+  activeTimers TimeTimer[]
+  resourceAllocations ResourceAllocation[]
+  meetings    Meeting[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, key])
+  @@index([tenantId])
+  @@index([workspaceId])
+}
+
+model ProjectMember {
+  id        String   @id @default(cuid())
+  projectId String
+  userId    String
+  role      String?
+
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@unique([projectId, userId])
+}
+
+model Milestone {
+  id          String   @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  dueDate     DateTime?
+  completedAt DateTime?
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ProjectRisk {
+  id          String   @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  severity    TaskPriority @default(MEDIUM)
+  mitigation  String?
+  isOpen      Boolean  @default(true)
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ProjectBudget {
+  id          String   @id @default(cuid())
+  projectId   String
+  currency    String   @default("USD")
+  planned     Decimal  @default(0)
+  actual      Decimal  @default(0)
+  notes       String?
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model ProjectStakeholder {
+  id            String   @id @default(cuid())
+  projectId     String
+  name          String
+  email         String?
+  organization  String?
+  role          String?
+  influence     ProjectStakeholderInfluence @default(MEDIUM)
+  isExternal    Boolean  @default(true)
+  notes         String?
+
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([email])
+}
+
+model ProjectDependency {
+  id             String   @id @default(cuid())
+  projectId      String
+  title          String
+  description    String?
+  dependencyType String?
+  status         ProjectDependencyStatus @default(OPEN)
+  ownerName      String?
+  ownerEmail     String?
+  dueDate        DateTime?
+  resolvedAt     DateTime?
+  externalUrl    String?
+  notes          String?
+
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([projectId, status])
+  @@index([dueDate])
+}
+
+model ProjectDecision {
+  id          String   @id @default(cuid())
+  projectId   String
+  title       String
+  description String?
+  status      ProjectDecisionStatus @default(PROPOSED)
+  ownerName   String?
+  ownerEmail  String?
+  decidedAt   DateTime?
+  effectiveAt DateTime?
+  outcome     String?
+  notes       String?
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([projectId, status])
+  @@index([decidedAt])
+}
+
+model ProjectChangeRequest {
+  id                 String   @id @default(cuid())
+  projectId          String
+  title              String
+  description        String?
+  reason             String?
+  status             ProjectChangeRequestStatus @default(DRAFT)
+  requestedByName    String?
+  requestedByEmail   String?
+  approvedByName     String?
+  approvedByEmail    String?
+  budgetImpact       Decimal  @default(0) @db.Decimal(14, 2)
+  scheduleImpactDays Int      @default(0)
+  scopeImpact        String?
+  riskImpact         String?
+  dueDate            DateTime?
+  submittedAt        DateTime?
+  approvedAt         DateTime?
+  implementedAt      DateTime?
+  notes              String?
+
+  project            Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  @@index([projectId, status])
+  @@index([dueDate])
+}
+
+/* =========================
+   TASKS
+========================= */
+
+model Task {
+  id            String       @id @default(cuid())
+  tenantId      String
+  projectId     String
+  sprintId      String?
+  boardColumnId String?
+  parentTaskId  String?
+  reporterId    String?
+
+  key           String
+  title         String
+  description   String?
+  type          TaskType     @default(TASK)
+  status        TaskStatus   @default(TODO)
+  priority      TaskPriority @default(MEDIUM)
+
+  startDate     DateTime?
+  dueDate       DateTime?
+  completedAt   DateTime?
+
+  storyPoints   Int?
+  estimateMins  Int?
+  actualMins    Int?
+
+  sortOrder     Int          @default(0)
+
+  project       Project      @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sprint        Sprint?      @relation(fields: [sprintId], references: [id])
+  boardColumn   BoardColumn? @relation(fields: [boardColumnId], references: [id], onDelete: SetNull)
+  parentTask    Task?        @relation("TaskSubtasks", fields: [parentTaskId], references: [id])
+  subtasks      Task[]       @relation("TaskSubtasks")
+  reporter      User?        @relation("TaskReporter", fields: [reporterId], references: [id])
+
+  assignees     TaskAssignee[]
+  watchers      TaskWatcher[]
+  comments      TaskComment[]
+  attachments   TaskAttachment[]
+  checklists    TaskChecklist[]
+  labels        TaskLabel[]
+  dependenciesFrom TaskDependency[] @relation("TaskDependencyFrom")
+  dependenciesTo   TaskDependency[] @relation("TaskDependencyTo")
+  timeEntries   TimeEntry[]
+  activeTimers   TimeTimer[]
+  customValues  CustomFieldValue[]
+  activities    TaskActivity[]
+  meetings      Meeting[]
+
+  archivedAt    DateTime?
+  deletedAt     DateTime?
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([projectId, key])
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([sprintId])
+  @@index([boardColumnId])
+  @@index([status])
+  @@index([tenantId, archivedAt])
+  @@index([tenantId, deletedAt])
+}
+
+model TaskAssignee {
+  id     String @id @default(cuid())
+  taskId String
+  userId String
+
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([userId])
+}
+
+model TaskWatcher {
+  id     String @id @default(cuid())
+  taskId String
+  userId String
+
+  task   Task   @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, userId])
+  @@index([userId])
+}
+
+model TaskComment {
+  id        String   @id @default(cuid())
+  taskId    String
+  authorId  String
+  body      String
+  parentId  String?
+
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  parent    TaskComment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies   TaskComment[] @relation("CommentReplies")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taskId, createdAt])
+}
+
+model TaskAttachment {
+  id        String   @id @default(cuid())
+  taskId    String
+  fileName  String
+  fileUrl   String
+  mimeType  String?
+  sizeBytes Int?
+
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([taskId, createdAt])
+}
+
+model TaskChecklist {
+  id        String @id @default(cuid())
+  taskId    String
+  title     String
+
+  task      Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  items     TaskChecklistItem[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([taskId])
+}
+
+model TaskChecklistItem {
+  id          String @id @default(cuid())
+  checklistId String
+  text        String
+  isDone      Boolean @default(false)
+  sortOrder   Int     @default(0)
+
+  checklist   TaskChecklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+
+  @@index([checklistId, sortOrder])
+}
+
+model Label {
+  id        String @id @default(cuid())
+  tenantId  String
+  name      String
+  color     String?
+
+  tasks     TaskLabel[]
+
+  createdAt DateTime @default(now())
+
+  @@unique([tenantId, name])
+}
+
+model TaskLabel {
+  id      String @id @default(cuid())
+  taskId  String
+  labelId String
+
+  task    Task  @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  label   Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@unique([taskId, labelId])
+  @@index([labelId])
+}
+
+model TaskDependency {
+  id         String @id @default(cuid())
+  fromTaskId String
+  toTaskId   String
+  type       String @default("BLOCKS")
+
+  fromTask   Task   @relation("TaskDependencyFrom", fields: [fromTaskId], references: [id], onDelete: Cascade)
+  toTask     Task   @relation("TaskDependencyTo", fields: [toTaskId], references: [id], onDelete: Cascade)
+
+  @@unique([fromTaskId, toTaskId, type])
+  @@index([toTaskId])
+}
+
+model TaskActivity {
+  id        String   @id @default(cuid())
+  taskId    String
+  actorId   String?
+  action    String
+  oldValue  Json?
+  newValue  Json?
+
+  task      Task     @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+
+  @@index([taskId, createdAt])
+}
+
+model FileAsset {
+  id           String     @id @default(cuid())
+  tenantId     String
+  uploadedById String?
+  scope        String     @default("GENERAL")
+  entityType   String
+  entityId     String?
+  fileName     String
+  fileUrl      String
+  storageKey   String?
+  provider     String     @default("external")
+  mimeType     String?
+  sizeBytes    Int?
+  visibility   Visibility @default(TEAM)
+  metadata     Json?
+  archivedAt   DateTime?
+  deletedAt    DateTime?
+  expiresAt    DateTime?
+
+  tenant       Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  uploadedBy   User?  @relation("FileAssetUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, scope])
+  @@index([tenantId, deletedAt])
+  @@index([tenantId, archivedAt])
+  @@index([uploadedById])
+}
+
+/* =========================
+   AGILE / SPRINTS
+========================= */
+
+model Sprint {
+  id          String   @id @default(cuid())
+  projectId   String
+  name        String
+  goal        String?
+  startDate   DateTime?
+  endDate     DateTime?
+  completedAt DateTime?
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  tasks       Task[]
+  meetings    Meeting[]
+  retrospectives SprintRetrospective[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([projectId])
+  @@index([projectId, completedAt])
+}
+
+model Board {
+  id          String @id @default(cuid())
+  tenantId    String
+  projectId   String
+  name        String
+  description String?
+  isDefault   Boolean @default(false)
+
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  columns     BoardColumn[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([projectId, name])
+  @@index([tenantId])
+  @@index([projectId])
+  @@index([projectId, isDefault])
+}
+
+model BoardColumn {
+  id        String     @id @default(cuid())
+  boardId   String
+  name      String
+  status    TaskStatus?
+  wipLimit  Int?
+  isCollapsed Boolean @default(false)
+  sortOrder Int        @default(0)
+
+  board     Board      @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  tasks     Task[]
+
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  @@unique([boardId, status])
+  @@index([boardId, sortOrder])
+}
+
+model SprintRetrospective {
+  id          String @id @default(cuid())
+  sprintId    String
+  authorId    String?
+  wentWell    String?
+  improve     String?
+  actionItems Json?
+
+  sprint      Sprint @relation(fields: [sprintId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sprintId])
+}
+
+/* =========================
+   MEETINGS / SCHEDULING
+========================= */
+
+model MeetingType {
+  id                  String              @id @default(cuid())
+  tenantId            String
+  createdById         String?
+  name                String
+  slug                String
+  description         String?
+  category            MeetingTypeCategory @default(CUSTOM)
+  color               String?             @default("#ffd400")
+  icon                String?
+  durationMins        Int                 @default(30)
+  bufferBeforeMins    Int                 @default(0)
+  bufferAfterMins     Int                 @default(0)
+  locationMode        MeetingLocationMode @default(ONLINE)
+  defaultVisibility   Visibility          @default(TEAM)
+  requiresApproval    Boolean             @default(false)
+  defaultAgenda       Json?
+  defaultReminderMins Int[]               @default([1440, 60])
+  isActive            Boolean             @default(true)
+  metadata            Json?
+
+  tenant              Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy           User?               @relation("MeetingTypeCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  meetings            Meeting[]
+  bookingPages        BookingPage[]
+  bookingRequests     BookingRequest[]
+
+  createdAt           DateTime            @default(now())
+  updatedAt           DateTime            @updatedAt
+
+  @@unique([tenantId, slug])
+  @@index([tenantId, category, isActive])
+}
+
+model Meeting {
+  id                   String                @id @default(cuid())
+  tenantId             String
+  meetingTypeId        String?
+  projectId            String?
+  sprintId             String?
+  taskId               String?
+  teamId               String?
+  hostId               String?
+  createdById          String?
+  approvedById         String?
+  title                String
+  description          String?
+  status               MeetingStatus         @default(SCHEDULED)
+  visibility           Visibility            @default(TEAM)
+  approvalStatus       MeetingApprovalStatus @default(NOT_REQUIRED)
+  startAt              DateTime
+  endAt                DateTime
+  timezone             String                @default("UTC")
+  locationMode         MeetingLocationMode   @default(ONLINE)
+  locationName         String?
+  meetingUrl           String?
+  conferenceProvider   String?
+  clientName           String?
+  clientEmail          String?
+  clientCompany        String?
+  externalCalendarId   String?
+  externalConferenceId String?
+  recurrenceRule       String?
+  liveNotes            String?
+  liveNotesVersion     Int                   @default(0)
+  liveNotesUpdatedAt   DateTime?
+  liveNotesUpdatedById String?
+  runtimeState         Json?
+  agendaLocked         Boolean               @default(false)
+  aiEnabled            Boolean               @default(true)
+  aiSummary            Json?
+  metadata             Json?
+  approvedAt           DateTime?
+  cancelledAt          DateTime?
+  cancelledReason      String?
+  completedAt          DateTime?
+  archivedAt           DateTime?
+
+  tenant               Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  meetingType          MeetingType?          @relation(fields: [meetingTypeId], references: [id], onDelete: SetNull)
+  project              Project?              @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  sprint               Sprint?               @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+  task                 Task?                 @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  team                 Team?                 @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  host                 User?                 @relation("MeetingHost", fields: [hostId], references: [id], onDelete: SetNull)
+  createdBy            User?                 @relation("MeetingCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  approvedBy           User?                 @relation("MeetingApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+  liveNotesUpdatedBy   User?                 @relation("MeetingLiveNotesUpdater", fields: [liveNotesUpdatedById], references: [id], onDelete: SetNull)
+  attendees            MeetingAttendee[]
+  agendaItems          MeetingAgendaItem[]
+  reminders            MeetingReminder[]
+  reminderJobs         MeetingReminderJob[]
+  activities           MeetingActivity[]
+  comments             MeetingComment[]
+  decisions            MeetingDecision[]
+  checklistItems       MeetingChecklistItem[]
+  bookingRequest       BookingRequest?
+
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+
+  @@index([tenantId, startAt])
+  @@index([tenantId, status, startAt])
+  @@index([tenantId, hostId, startAt])
+  @@index([tenantId, projectId, startAt])
+  @@index([tenantId, sprintId, startAt])
+  @@index([tenantId, clientEmail])
+  @@index([tenantId, liveNotesUpdatedAt])
+  @@index([tenantId, archivedAt])
+}
+
+model MeetingAttendee {
+  id           String                @id @default(cuid())
+  tenantId     String
+  meetingId    String
+  userId       String?
+  email        String?
+  name         String?
+  role         MeetingAttendeeRole   @default(REQUIRED)
+  status       MeetingAttendeeStatus @default(INVITED)
+  isExternal   Boolean               @default(false)
+  responseNote String?
+  metadata     Json?
+
+  tenant       Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  meeting      Meeting               @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user         User?                 @relation("MeetingAttendeeUser", fields: [userId], references: [id], onDelete: SetNull)
+  reminders    MeetingReminder[]
+
+  createdAt    DateTime              @default(now())
+  updatedAt    DateTime              @updatedAt
+
+  @@unique([meetingId, userId])
+  @@index([tenantId, userId])
+  @@index([tenantId, email])
+  @@index([meetingId, role])
+}
+
+model MeetingAgendaItem {
+  id           String              @id @default(cuid())
+  tenantId     String
+  meetingId    String
+  ownerId      String?
+  title        String
+  notes        String?
+  status       MeetingAgendaStatus @default(OPEN)
+  durationMins Int?
+  sortOrder    Int                 @default(0)
+  metadata     Json?
+
+  tenant       Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  meeting      Meeting             @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  owner        User?               @relation("MeetingAgendaOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([meetingId, sortOrder])
+  @@index([tenantId, ownerId])
+}
+
+model MeetingReminder {
+  id            String                 @id @default(cuid())
+  tenantId      String
+  meetingId     String
+  attendeeId    String?
+  channel       MeetingReminderChannel
+  offsetMinutes Int
+  scheduledFor  DateTime
+  status        MeetingReminderStatus  @default(PENDING)
+  destination   String?
+  templateKey   String?
+  payload       Json?
+  error         String?
+  sentAt        DateTime?
+
+  tenant        Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  meeting       Meeting                @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  attendee      MeetingAttendee?       @relation(fields: [attendeeId], references: [id], onDelete: SetNull)
+  job           MeetingReminderJob?
+
+  createdAt     DateTime               @default(now())
+  updatedAt     DateTime               @updatedAt
+
+  @@index([tenantId, status, scheduledFor])
+  @@index([meetingId, channel])
+}
+
+model MeetingIntegrationSettings {
+  id                               String                      @id @default(cuid())
+  tenantId                         String                      @unique
+  defaultConferenceProvider        MeetingConferenceProvider   @default(MANUAL)
+  allowedConferenceProviders       MeetingConferenceProvider[] @default([MANUAL, CUSTOM_URL, GOOGLE_CALENDAR, GOOGLE_MEET, MICROSOFT_TEAMS, ZOOM])
+  defaultReminderChannels          MeetingReminderChannel[]    @default([IN_APP, EMAIL])
+  calendarSyncEnabled              Boolean                     @default(false)
+  emailRemindersEnabled            Boolean                     @default(true)
+  whatsappRemindersEnabled         Boolean                     @default(false)
+  smsRemindersEnabled              Boolean                     @default(false)
+  webhookEventsEnabled             Boolean                     @default(true)
+  requireApprovedWhatsappTemplates Boolean                     @default(true)
+  publicBookingEnabled             Boolean                     @default(true)
+  publicBookingCreatorPermissions  String[]                    @default(["manage:meetings"])
+  calendarConnectionPermissions    String[]                    @default(["manage:meetings", "manage:integrations", "manage:tenant"])
+  whatsappConnectionPermissions    String[]                    @default(["manage:meetings", "manage:integrations", "manage:tenant"])
+  defaultMeetingVisibility         Visibility                  @default(TEAM)
+  allowExternalGuests              Boolean                     @default(true)
+  requireApprovalForExternalGuests Boolean                     @default(false)
+  maxAdvanceBookingDays            Int                         @default(90)
+  minBookingNoticeMins             Int                         @default(120)
+  maxMeetingDurationMins           Int                         @default(240)
+  aiMeetingProcessingEnabled       Boolean                     @default(true)
+  manualLinkPolicy                 Json?
+  policyConfig                     Json?
+  providerConfig                   Json?
+
+  tenant                           Tenant                      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdAt                        DateTime                    @default(now())
+  updatedAt                        DateTime                    @updatedAt
+
+  @@index([tenantId, webhookEventsEnabled])
+}
+
+model MeetingReminderJob {
+  id            String                   @id @default(cuid())
+  tenantId      String
+  meetingId     String
+  reminderId    String?                  @unique
+  channel       MeetingReminderChannel
+  provider      String?
+  status        MeetingReminderJobStatus @default(QUEUED)
+  scheduledFor  DateTime
+  destination   String?
+  payload       Json?
+  attempts      Int                      @default(0)
+  maxAttempts   Int                      @default(3)
+  nextAttemptAt DateTime                 @default(now())
+  lockedAt      DateTime?
+  sentAt        DateTime?
+  failedAt      DateTime?
+  deadLetterAt  DateTime?
+  lastError     String?
+
+  tenant        Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  meeting       Meeting                  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  reminder      MeetingReminder?         @relation(fields: [reminderId], references: [id], onDelete: SetNull)
+
+  createdAt     DateTime                 @default(now())
+  updatedAt     DateTime                 @updatedAt
+
+  @@index([tenantId, status, nextAttemptAt])
+  @@index([tenantId, channel, status])
+  @@index([meetingId, status])
+}
+
+model MeetingAvailabilityWindow {
+  id               String                   @id @default(cuid())
+  tenantId         String
+  ownerId          String?
+  teamId           String?
+  scope            MeetingAvailabilityScope @default(USER)
+  label            String?
+  dayOfWeek        Int
+  startTime        String
+  endTime          String
+  timezone         String                   @default("UTC")
+  capacity         Int                      @default(1)
+  bufferBeforeMins Int                      @default(0)
+  bufferAfterMins  Int                      @default(0)
+  isActive         Boolean                  @default(true)
+
+  tenant           Tenant                   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner            User?                    @relation("MeetingAvailabilityOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  team             Team?                    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  @@index([tenantId, scope, isActive])
+  @@index([tenantId, ownerId, dayOfWeek])
+  @@index([tenantId, teamId, dayOfWeek])
+}
+
+model MeetingBlackoutWindow {
+  id        String   @id @default(cuid())
+  tenantId  String
+  ownerId   String?
+  teamId    String?
+  title     String
+  reason    String?
+  startAt   DateTime
+  endAt     DateTime
+  timezone  String   @default("UTC")
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner     User?    @relation("MeetingBlackoutOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  team      Team?    @relation(fields: [teamId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([tenantId, startAt, endAt])
+  @@index([tenantId, ownerId, startAt])
+  @@index([tenantId, teamId, startAt])
+}
+
+model MeetingActivity {
+  id         String   @id @default(cuid())
+  tenantId   String
+  meetingId  String
+  actorId    String?
+  action     String
+  oldValue   Json?
+  newValue   Json?
+
+  tenant     Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  meeting    Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  actor      User?    @relation("MeetingActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  createdAt  DateTime @default(now())
+
+  @@index([meetingId, createdAt])
+  @@index([tenantId, action, createdAt])
+}
+
+model MeetingComment {
+  id        String   @id @default(cuid())
+  tenantId  String
+  meetingId String
+  authorId  String
+  body      String
+  metadata  Json?
+
+  tenant    Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  author    User     @relation("MeetingCommentAuthor", fields: [authorId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([meetingId, createdAt])
+  @@index([tenantId, authorId, createdAt])
+}
+
+model MeetingDecision {
+  id        String    @id @default(cuid())
+  tenantId  String
+  meetingId String
+  ownerId   String?
+  title     String
+  summary   String?
+  impact    String?
+  status    String    @default("OPEN")
+  dueAt     DateTime?
+  taskId    String?
+  metadata  Json?
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  meeting   Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  owner     User?     @relation("MeetingDecisionOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([meetingId, status, createdAt])
+  @@index([tenantId, ownerId, dueAt])
+  @@index([tenantId, taskId])
+}
+
+model MeetingChecklistItem {
+  id        String    @id @default(cuid())
+  tenantId  String
+  meetingId String
+  ownerId   String?
+  title     String
+  notes     String?
+  isDone    Boolean   @default(false)
+  dueAt     DateTime?
+  taskId    String?
+  sortOrder Int       @default(0)
+  metadata  Json?
+
+  tenant    Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  meeting   Meeting   @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  owner     User?     @relation("MeetingChecklistOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([meetingId, isDone, sortOrder])
+  @@index([tenantId, ownerId, dueAt])
+  @@index([tenantId, taskId])
+}
+
+model BookingPage {
+  id                   String                 @id @default(cuid())
+  tenantId             String
+  meetingTypeId        String?
+  teamId               String?
+  ownerId              String?
+  createdById          String?
+  path                 String
+  title                String
+  subtitle             String?
+  description          String?
+  scope                BookingPageScope       @default(TENANT)
+  routingStrategy      BookingRoutingStrategy @default(DIRECT_HOST)
+  department           String?
+  durationMins         Int?
+  bufferBeforeMins     Int                    @default(0)
+  bufferAfterMins      Int                    @default(0)
+  minNoticeMins        Int                    @default(120)
+  rollingWindowDays    Int                    @default(30)
+  dailyLimit           Int?
+  weeklyLimit          Int?
+  approvalRequired     Boolean                @default(false)
+  allowReschedule      Boolean                @default(true)
+  allowCancel          Boolean                @default(true)
+  collectCompanyName   Boolean                @default(true)
+  locationMode         MeetingLocationMode    @default(ONLINE)
+  locationName         String?
+  meetingUrl           String?
+  conferenceProvider   String?
+  timezone             String                 @default("UTC")
+  brandColor           String?
+  logoUrl              String?
+  heroImageUrl         String?
+  isActive             Boolean                @default(true)
+  metadata             Json?
+
+  tenant               Tenant                 @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  meetingType          MeetingType?           @relation(fields: [meetingTypeId], references: [id], onDelete: SetNull)
+  team                 Team?                  @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  owner                User?                  @relation("BookingPageOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  createdBy            User?                  @relation("BookingPageCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  fields               BookingFormField[]
+  requests             BookingRequest[]
+
+  createdAt            DateTime               @default(now())
+  updatedAt            DateTime               @updatedAt
+
+  @@unique([tenantId, path])
+  @@index([tenantId, isActive])
+  @@index([tenantId, scope, routingStrategy])
+  @@index([tenantId, meetingTypeId])
+  @@index([tenantId, teamId])
+  @@index([tenantId, ownerId])
+}
+
+model BookingFormField {
+  id          String               @id @default(cuid())
+  tenantId    String
+  pageId      String
+  fieldKey    String
+  label       String
+  type        BookingFormFieldType @default(TEXT)
+  required    Boolean              @default(false)
+  placeholder String?
+  helpText    String?
+  options     Json?
+  sortOrder   Int                  @default(0)
+  isActive    Boolean              @default(true)
+
+  tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  page        BookingPage          @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@unique([pageId, fieldKey])
+  @@index([tenantId, pageId, isActive])
+}
+
+model BookingRequest {
+  id                String               @id @default(cuid())
+  tenantId          String
+  pageId            String
+  meetingId         String?              @unique
+  meetingTypeId     String?
+  teamId            String?
+  hostId            String?
+  status            BookingRequestStatus @default(CONFIRMED)
+  guestName         String
+  guestEmail        String
+  guestPhone        String?
+  guestCompany      String?
+  guestTimezone     String               @default("UTC")
+  title             String
+  notes             String?
+  intakeResponses   Json?
+  routingSnapshot   Json?
+  startAt           DateTime
+  endAt             DateTime
+  locationMode      MeetingLocationMode  @default(ONLINE)
+  locationName      String?
+  meetingUrl        String?
+  conferenceProvider String?
+  cancelTokenHash   String?              @unique
+  rescheduleTokenHash String?            @unique
+  tokenExpiresAt    DateTime?
+  cancelledAt       DateTime?
+  cancellationReason String?
+  rescheduledFromId String?
+  approvedAt        DateTime?
+  rejectedAt        DateTime?
+  metadata          Json?
+
+  tenant            Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  page              BookingPage          @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  meeting           Meeting?             @relation(fields: [meetingId], references: [id], onDelete: SetNull)
+  meetingType       MeetingType?         @relation(fields: [meetingTypeId], references: [id], onDelete: SetNull)
+  team              Team?                @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  host              User?                @relation("BookingRequestHost", fields: [hostId], references: [id], onDelete: SetNull)
+
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@index([tenantId, status, startAt])
+  @@index([tenantId, guestEmail])
+  @@index([tenantId, hostId, startAt])
+  @@index([tenantId, pageId, createdAt])
+  @@index([rescheduledFromId])
+}
+
+/* =========================
+   TIME / RESOURCE PLANNING
+========================= */
+
+model TimeEntry {
+  id          String          @id @default(cuid())
+  tenantId    String
+  userId      String
+  projectId   String?
+  taskId      String?
+  timesheetId String?
+  minutes     Int             @default(0)
+  description String?
+  billable    Boolean         @default(false)
+  status      TimeEntryStatus @default(DRAFT)
+  entryDate   DateTime        @default(now())
+  startedAt   DateTime?
+  endedAt     DateTime?
+  lockedAt    DateTime?
+
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project?        @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  task        Task?           @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  timesheet   Timesheet?      @relation(fields: [timesheetId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([tenantId, entryDate])
+  @@index([tenantId, userId, entryDate])
+  @@index([tenantId, projectId, entryDate])
+  @@index([tenantId, taskId])
+  @@index([timesheetId])
+}
+
+model TimeTimer {
+  id          String   @id @default(cuid())
+  tenantId    String
+  userId      String
+  projectId   String?
+  taskId      String?
+  description String?
+  billable    Boolean  @default(false)
+  startedAt   DateTime @default(now())
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project? @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  task        Task?    @relation(fields: [taskId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, userId])
+  @@index([tenantId, startedAt])
+}
+
+model Timesheet {
+  id              String          @id @default(cuid())
+  tenantId        String
+  userId          String
+  periodStart     DateTime
+  periodEnd       DateTime
+  status          TimesheetStatus @default(DRAFT)
+  notes           String?
+  submittedAt     DateTime?
+  approvedAt      DateTime?
+  rejectedAt      DateTime?
+  approverId      String?
+  rejectionReason String?
+
+  user            User            @relation("TimesheetOwner", fields: [userId], references: [id], onDelete: Cascade)
+  approver        User?           @relation("TimesheetApprover", fields: [approverId], references: [id], onDelete: SetNull)
+  entries         TimeEntry[]
+
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  @@unique([tenantId, userId, periodStart, periodEnd])
+  @@index([tenantId, status])
+  @@index([tenantId, userId, periodStart])
+}
+
+model Skill {
+  id          String @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  category    String?
+  createdById String?
+  archivedAt  DateTime?
+
+  users       UserSkill[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, name])
+  @@index([tenantId, archivedAt])
+}
+
+model UserSkill {
+  id              String @id @default(cuid())
+  tenantId        String
+  userId          String
+  skillId         String
+  level           Int    @default(1)
+  yearsExperience Int?
+  notes           String?
+
+  user            User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  skill           Skill  @relation(fields: [skillId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([userId, skillId])
+  @@index([tenantId, userId])
+  @@index([tenantId, skillId])
+}
+
+model ResourceAllocation {
+  id          String   @id @default(cuid())
+  tenantId    String
+  userId      String
+  projectId   String
+  role        String?
+  percent     Int
+  billable    Boolean  @default(true)
+  notes       String?
+  startDate   DateTime
+  endDate     DateTime?
+  createdById String?
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, userId, startDate])
+  @@index([tenantId, projectId, startDate])
+  @@index([tenantId, startDate, endDate])
+}
+
+/* =========================
+   CUSTOM FIELDS
+========================= */
+
+model CustomField {
+  id          String          @id @default(cuid())
+  tenantId    String
+  workspaceId String?
+  projectId   String?
+  entityType  String
+  name        String
+  type        CustomFieldType
+  required    Boolean         @default(false)
+  config      Json?
+  sortOrder   Int             @default(0)
+  archivedAt  DateTime?
+
+  tenant      Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  workspace   Workspace?      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  project     Project?        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  options     CustomFieldOption[]
+  values      CustomFieldValue[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, entityType])
+  @@index([tenantId, workspaceId, entityType])
+  @@index([tenantId, projectId, entityType])
+  @@index([tenantId, archivedAt])
+}
+
+model TaskSavedView {
+  id            String     @id @default(cuid())
+  tenantId      String
+  ownerId       String
+  projectId     String?
+  name          String
+  description   String?
+  visibility    Visibility @default(PRIVATE)
+  filters       Json
+  columns       Json?
+  sortBy        String?
+  sortDirection String?
+  isDefault     Boolean    @default(false)
+
+  tenant        Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner         User       @relation("TaskSavedViewOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  project       Project?   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  @@index([tenantId, ownerId])
+  @@index([tenantId, projectId])
+  @@index([tenantId, visibility])
+}
+
+model CustomFieldOption {
+  id            String @id @default(cuid())
+  customFieldId String
+  label         String
+  value         String
+  sortOrder     Int    @default(0)
+
+  customField   CustomField @relation(fields: [customFieldId], references: [id], onDelete: Cascade)
+}
+
+model CustomFieldValue {
+  id            String @id @default(cuid())
+  customFieldId String
+  taskId        String?
+  value         Json
+
+  customField   CustomField @relation(fields: [customFieldId], references: [id], onDelete: Cascade)
+  task          Task?       @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@index([customFieldId])
+  @@index([taskId])
+  @@unique([customFieldId, taskId])
+}
+
+/* =========================
+   WORKFLOWS / APPROVALS
+========================= */
+
+model Workflow {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  entityType  String
+  triggerType String   @default("MANUAL")
+  eventType   String?
+  config      Json?
+  isActive    Boolean  @default(true)
+  createdById String?
+  archivedAt  DateTime?
+  lastRunAt   DateTime?
+
+  nodes       WorkflowNode[]
+  runs        WorkflowRun[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, entityType, eventType])
+  @@index([tenantId, isActive, archivedAt])
+}
+
+model WorkflowNode {
+  id             String @id @default(cuid())
+  workflowId     String
+  key            String?
+  name           String
+  type           String
+  actionType     String?
+  config         Json?
+  sortOrder      Int    @default(0)
+  enabled        Boolean @default(true)
+  retryAttempts  Int    @default(0)
+  timeoutSeconds Int?
+  dependsOn      Json?
+  onFailure      String?
+  positionX      Int?
+  positionY      Int?
+
+  workflow       Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  logs           WorkflowRunLog[]
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([workflowId, sortOrder])
+}
+
+model WorkflowRun {
+  id          String            @id @default(cuid())
+  workflowId  String
+  tenantId    String
+  entityType  String?
+  entityId    String
+  eventType   String?
+  triggerType String?
+  idempotencyKey String?
+  status      WorkflowRunStatus @default(PENDING)
+  context     Json?
+  error       String?
+  startedAt   DateTime?
+  completedAt DateTime?
+
+  workflow    Workflow @relation(fields: [workflowId], references: [id], onDelete: Cascade)
+  logs        WorkflowRunLog[]
+  approvals   Approval[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([workflowId, idempotencyKey])
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, entityType, entityId])
+}
+
+model WorkflowRunLog {
+  id          String   @id @default(cuid())
+  runId       String
+  nodeId      String?
+  level       String   @default("INFO")
+  message     String
+  data        Json?
+  startedAt   DateTime?
+  finishedAt  DateTime?
+
+  run         WorkflowRun @relation(fields: [runId], references: [id], onDelete: Cascade)
+  node        WorkflowNode? @relation(fields: [nodeId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime @default(now())
+
+  @@index([runId, createdAt])
+  @@index([nodeId])
+}
+
+model ApprovalDefinition {
+  id          String   @id @default(cuid())
+  tenantId    String
+  name        String
+  description String?
+  entityType  String
+  isActive    Boolean  @default(true)
+  createdById String?
+  archivedAt  DateTime?
+
+  steps       ApprovalDefinitionStep[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, name])
+  @@index([tenantId, entityType, isActive])
+}
+
+model ApprovalDefinitionStep {
+  id              String @id @default(cuid())
+  definitionId    String
+  stepOrder       Int
+  title           String
+  approverId      String?
+  approverRole    String?
+  required        Boolean @default(true)
+  escalationHours Int?
+
+  definition      ApprovalDefinition @relation(fields: [definitionId], references: [id], onDelete: Cascade)
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([definitionId, stepOrder])
+}
+
+model Approval {
+  id          String         @id @default(cuid())
+  tenantId    String
+  definitionId String?
+  workflowRunId String?
+  entityType  String
+  entityId    String
+  title       String
+  description String?
+  status      ApprovalStatus @default(PENDING)
+  requestedById String?
+  currentStep Int            @default(1)
+  dueDate     DateTime?
+  decidedAt   DateTime?
+  metadata    Json?
+
+  workflowRun WorkflowRun?   @relation(fields: [workflowRunId], references: [id], onDelete: SetNull)
+  steps       ApprovalStep[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, status, createdAt])
+  @@index([tenantId, entityType, entityId])
+  @@index([workflowRunId])
+}
+
+model ApprovalStep {
+  id         String         @id @default(cuid())
+  approvalId String
+  stepOrder  Int            @default(1)
+  title      String?
+  approverId String
+  required   Boolean        @default(true)
+  status     ApprovalStatus @default(PENDING)
+  comments   String?
+  decidedById String?
+  decidedAt  DateTime?
+  dueDate    DateTime?
+
+  approval   Approval @relation(fields: [approvalId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([approverId, status])
+  @@index([approvalId, stepOrder])
+}
+
+/* =========================
+   DOCUMENTS / KNOWLEDGE BASE
+========================= */
+
+model DocumentFolder {
+  id          String @id @default(cuid())
+  tenantId    String
+  parentId    String?
+  name        String
+  description String?
+  createdById String?
+  archivedAt  DateTime?
+
+  parent      DocumentFolder? @relation("FolderChildren", fields: [parentId], references: [id])
+  children    DocumentFolder[] @relation("FolderChildren")
+  documents   Document[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId])
+  @@index([tenantId, parentId])
+  @@index([tenantId, archivedAt])
+}
+
+model Document {
+  id          String     @id @default(cuid())
+  tenantId    String
+  projectId   String?
+  folderId    String?
+  slug        String?
+  title       String
+  summary     String?
+  body        String?
+  documentType String   @default("GENERAL")
+  status      DocumentStatus @default(DRAFT)
+  visibility  Visibility @default(TEAM)
+  tags        Json?
+  createdById String?
+  updatedById String?
+  publishedAt DateTime?
+  archivedAt  DateTime?
+
+  project     Project?   @relation(fields: [projectId], references: [id])
+  folder      DocumentFolder? @relation(fields: [folderId], references: [id])
+  versions    DocumentVersion[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, slug])
+  @@index([tenantId])
+  @@index([tenantId, projectId])
+  @@index([tenantId, folderId])
+  @@index([tenantId, status])
+  @@index([tenantId, visibility])
+  @@index([tenantId, archivedAt])
+}
+
+model DocumentVersion {
+  id          String   @id @default(cuid())
+  documentId  String
+  version     Int
+  title       String?
+  body        String?
+  summary     String?
+  visibility  Visibility?
+  status      DocumentStatus?
+  projectId   String?
+  folderId    String?
+  tags        Json?
+  changeNote  String?
+  createdById String?
+
+  document    Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+
+  @@unique([documentId, version])
+  @@index([documentId, createdAt])
+}
+
+/* =========================
+   CHAT / COLLABORATION
+========================= */
+
+model Conversation {
+  id        String @id @default(cuid())
+  tenantId  String
+  title     String?
+  isGroup   Boolean @default(false)
+
+  members   ConversationMember[]
+  messages  Message[]
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([tenantId, createdAt])
+}
+
+model ConversationMember {
+  id             String @id @default(cuid())
+  conversationId String
+  userId         String
+
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@unique([conversationId, userId])
+  @@index([userId])
+}
+
+model Message {
+  id                     String @id @default(cuid())
+  conversationId         String
+  senderId               String
+  parentMessageId        String?
+  forwardedFromMessageId String?
+  pinnedById             String?
+  body                   String?
+  attachments            Json?
+  metadata               Json?
+  pinnedAt               DateTime?
+
+  conversation           Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  reactions              MessageReaction[]
+  readReceipts           MessageReadReceipt[]
+
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([conversationId, createdAt])
+  @@index([conversationId, parentMessageId, createdAt])
+  @@index([conversationId, pinnedAt])
+  @@index([senderId])
+}
+
+model MessageReaction {
+  id        String @id @default(cuid())
+  messageId String
+  userId    String
+  emoji     String
+
+  message   Message @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId, emoji])
+  @@index([userId])
+}
+
+model MessageReadReceipt {
+  id        String   @id @default(cuid())
+  messageId String
+  userId    String
+  readAt    DateTime @default(now())
+
+  message   Message  @relation(fields: [messageId], references: [id], onDelete: Cascade)
+
+  @@unique([messageId, userId])
+  @@index([userId])
+}
+
+/* =========================
+   INTERNAL MAIL
+========================= */
+
+model InternalMailbox {
+  id          String                @id @default(cuid())
+  tenantId    String
+  userId      String?               @unique
+  teamId      String?
+  type        InternalMailboxType   @default(USER)
+  status      InternalMailboxStatus @default(ACTIVE)
+  displayName String
+  localPart   String
+  address     String
+  description String?
+  createdById String?
+  updatedById String?
+
+  tenant      Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user        User?                 @relation("InternalMailboxUser", fields: [userId], references: [id], onDelete: SetNull)
+  team        Team?                 @relation(fields: [teamId], references: [id], onDelete: SetNull)
+  aliases     InternalMailboxAlias[]
+  members     InternalMailboxMember[]
+
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@unique([tenantId, localPart])
+  @@unique([tenantId, address])
+  @@index([tenantId, status, type])
+  @@index([tenantId, userId])
+  @@index([tenantId, teamId])
+}
+
+model InternalMailboxAlias {
+  id          String                @id @default(cuid())
+  tenantId    String
+  mailboxId   String
+  localPart   String
+  address     String
+  status      InternalMailboxStatus @default(ACTIVE)
+  isPrimary   Boolean               @default(false)
+  createdById String?
+
+  tenant      Tenant                @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  mailbox     InternalMailbox       @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime              @default(now())
+  updatedAt   DateTime              @updatedAt
+
+  @@unique([tenantId, localPart])
+  @@unique([tenantId, address])
+  @@index([tenantId, mailboxId])
+  @@index([tenantId, status])
+}
+
+model InternalMailboxMember {
+  id          String                    @id @default(cuid())
+  tenantId    String
+  mailboxId   String
+  userId      String
+  role        InternalMailboxMemberRole @default(MEMBER)
+  createdById String?
+
+  tenant      Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  mailbox     InternalMailbox           @relation(fields: [mailboxId], references: [id], onDelete: Cascade)
+  user        User                      @relation("InternalMailboxMemberUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+
+  @@unique([mailboxId, userId])
+  @@index([tenantId, userId])
+  @@index([tenantId, mailboxId])
+}
+
+model InternalMailThread {
+  id            String               @id @default(cuid())
+  tenantId      String
+  subject       String
+  createdById   String
+  priority      InternalMailPriority @default(NORMAL)
+  lastMessageAt DateTime             @default(now())
+  metadata      Json?
+
+  tenant        Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy     User                 @relation("InternalMailThreadCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  messages      InternalMailMessage[]
+  participants  InternalMailParticipant[]
+
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
+
+  @@index([tenantId, lastMessageAt])
+  @@index([tenantId, createdById])
+}
+
+model InternalMailMessage {
+  id          String               @id @default(cuid())
+  tenantId    String
+  threadId    String
+  senderId    String
+  subject     String
+  bodyText    String
+  bodyHtml    String?
+  priority    InternalMailPriority @default(NORMAL)
+  attachments Json?
+  isDraft     Boolean              @default(false)
+  sentAt      DateTime?
+
+  tenant      Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  thread      InternalMailThread   @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  sender      User                 @relation("InternalMailMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  recipients  InternalMailRecipient[]
+
+  createdAt   DateTime             @default(now())
+  updatedAt   DateTime             @updatedAt
+
+  @@index([tenantId, threadId, createdAt])
+  @@index([tenantId, senderId, createdAt])
+  @@index([tenantId, isDraft])
+}
+
+model InternalMailParticipant {
+  id                String             @id @default(cuid())
+  tenantId          String
+  threadId          String
+  userId            String
+  folder            InternalMailFolder @default(INBOX)
+  readAt            DateTime?
+  starredAt         DateTime?
+  flaggedAt         DateTime?
+  pinnedAt          DateTime?
+  archivedAt        DateTime?
+  deletedAt         DateTime?
+  snoozedUntil      DateTime?
+  lastReadMessageId String?
+
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  thread            InternalMailThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  user              User               @relation("InternalMailParticipantUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  @@unique([threadId, userId])
+  @@index([tenantId, userId, folder, updatedAt])
+  @@index([tenantId, userId, readAt])
+  @@index([tenantId, userId, starredAt])
+  @@index([tenantId, userId, flaggedAt])
+  @@index([tenantId, userId, pinnedAt])
+  @@index([tenantId, userId, snoozedUntil])
+}
+
+model InternalMailRecipient {
+  id          String                    @id @default(cuid())
+  tenantId    String
+  messageId   String
+  userId      String
+  kind        InternalMailRecipientKind @default(TO)
+  deliveredAt DateTime?
+  readAt      DateTime?
+
+  tenant      Tenant                    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  message     InternalMailMessage       @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  user        User                      @relation("InternalMailRecipientUser", fields: [userId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime                  @default(now())
+
+  @@unique([messageId, userId, kind])
+  @@index([tenantId, userId, kind])
+  @@index([tenantId, messageId])
+}
+
+/* =========================
+   NOTIFICATIONS
+========================= */
+
+model Notification {
+  id        String              @id @default(cuid())
+  tenantId  String
+  userId    String
+  templateId String?
+  title     String
+  body      String?
+  channel   NotificationChannel @default(IN_APP)
+  readAt    DateTime?
+  data      Json?
+
+  user      User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  template  NotificationTemplate? @relation(fields: [templateId], references: [id])
+  deliveries NotificationDelivery[]
+
+  createdAt DateTime @default(now())
+
+  @@index([tenantId, userId])
+  @@index([tenantId, userId, readAt])
+  @@index([tenantId, createdAt])
+}
+
+model NotificationPreference {
+  id        String              @id @default(cuid())
+  userId    String
+  channel   NotificationChannel
+  enabled   Boolean             @default(true)
+
+  @@unique([userId, channel])
+}
+
+model NotificationTemplate {
+  id        String              @id @default(cuid())
+  tenantId  String
+  key       String
+  name      String
+  subject   String?
+  body      String
+  channel   NotificationChannel @default(IN_APP)
+  isActive  Boolean             @default(true)
+  config    Json?
+
+  notifications Notification[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId, key, channel])
+  @@index([tenantId])
+  @@index([tenantId, isActive])
+}
+
+model NotificationDelivery {
+  id             String                     @id @default(cuid())
+  tenantId       String
+  notificationId String
+  userId         String
+  channel        NotificationChannel
+  status         NotificationDeliveryStatus @default(PENDING)
+  attempts       Int                        @default(0)
+  provider       String?
+  providerMessageId String?
+  lastError      String?
+  nextAttemptAt  DateTime?
+  sentAt         DateTime?
+
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([tenantId, status])
+  @@index([tenantId, userId])
+  @@index([notificationId])
+  @@unique([notificationId, channel])
+}
+
+/* =========================
+   BILLING / SUBSCRIPTIONS
+========================= */
+
+model Plan {
+  id          String @id @default(cuid())
+  name        String
+  slug        String @unique
+  description String?
+  price       Decimal @default(0)
+  currency    String  @default("USD")
+  interval    String  @default("month")
+  isActive    Boolean @default(true)
+  trialDays   Int?
+  seatLimit   Int?
+  providerPriceId String?
+  metadata    Json?
+  archivedAt  DateTime?
+
+  features    PlanFeature[]
+  subscriptions Subscription[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([isActive, archivedAt])
+  @@index([providerPriceId])
+}
+
+model Feature {
+  id          String @id @default(cuid())
+  key         String @unique
+  name        String
+  description String?
+  category    String?
+  unit        String?
+  defaultLimit Int?
+  metered     Boolean @default(false)
+  isActive    Boolean @default(true)
+
+  plans       PlanFeature[]
+  usageRecords UsageRecord[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([category])
+  @@index([isActive])
+}
+
+model PlanFeature {
+  id        String @id @default(cuid())
+  planId    String
+  featureId String
+  limit     Int?
+  enabled   Boolean @default(true)
+  config    Json?
+
+  plan      Plan    @relation(fields: [planId], references: [id], onDelete: Cascade)
+  feature   Feature @relation(fields: [featureId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([planId, featureId])
+  @@index([featureId])
+}
+
+model Subscription {
+  id        String        @id @default(cuid())
+  tenantId  String        @unique
+  planId    String
+  status    BillingStatus @default(TRIALING)
+  provider  String        @default("manual")
+  providerCustomerId String?
+  providerSubscriptionId String?
+  seatCount Int           @default(1)
+  cancelAtPeriodEnd Boolean @default(false)
+  trialEndsAt DateTime?
+  currentPeriodStart DateTime?
+  currentPeriodEnd   DateTime?
+  canceledAt DateTime?
+  metadata   Json?
+
+  tenant    Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan      Plan   @relation(fields: [planId], references: [id])
+
+  invoices  Invoice[]
+  usageRecords UsageRecord[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([status])
+  @@index([provider, providerCustomerId])
+  @@index([provider, providerSubscriptionId])
+}
+
+model Invoice {
+  id             String @id @default(cuid())
+  tenantId       String?
+  subscriptionId String
+  provider       String @default("manual")
+  providerInvoiceId String?
+  number         String?
+  amount         Decimal
+  currency       String @default("USD")
+  status         String
+  subtotal       Decimal?
+  tax            Decimal?
+  total          Decimal?
+  periodStart    DateTime?
+  periodEnd      DateTime?
+  dueDate        DateTime?
+  paidAt         DateTime?
+  hostedInvoiceUrl String?
+  invoicePdfUrl    String?
+  metadata       Json?
+
+  subscription   Subscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([provider, providerInvoiceId])
+  @@index([tenantId, status])
+  @@index([subscriptionId, createdAt])
+}
+
+model UsageRecord {
+  id             String            @id @default(cuid())
+  tenantId       String
+  subscriptionId String?
+  featureId      String?
+  featureKey     String
+  quantity       Int
+  unit           String?
+  source         UsageRecordSource @default(API)
+  idempotencyKey String?
+  metadata       Json?
+  periodStart    DateTime
+  periodEnd      DateTime
+  createdById    String?
+
+  tenant         Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  subscription   Subscription? @relation(fields: [subscriptionId], references: [id], onDelete: SetNull)
+  feature        Feature? @relation(fields: [featureId], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime @default(now())
+
+  @@unique([tenantId, featureKey, idempotencyKey])
+  @@index([tenantId, featureKey, periodStart, periodEnd])
+  @@index([subscriptionId])
+}
+
+model BillingEvent {
+  id          String             @id @default(cuid())
+  tenantId    String?
+  provider    String
+  eventId     String
+  type        String
+  status      BillingEventStatus @default(RECEIVED)
+  payload     Json?
+  processedAt DateTime?
+  error       String?
+
+  tenant      Tenant? @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([provider, eventId])
+  @@index([tenantId, status])
+  @@index([provider, type])
+}
+
+/* =========================
+   INTEGRATIONS
+========================= */
+
+model Integration {
+  id          String              @id @default(cuid())
+  tenantId    String
+  provider    IntegrationProvider
+  name        String
+  config      Json?
+  encryptedSecrets Json?
+  externalAccountId String?
+  scopes      String[]
+  enabled     Boolean             @default(true)
+  status      IntegrationStatus    @default(ACTIVE)
+  lastSyncAt  DateTime?
+  lastError   String?
+  createdById String?
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  logs        IntegrationLog[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@unique([tenantId, provider, name])
+  @@index([tenantId, provider])
+  @@index([tenantId, status])
+}
+
+model IntegrationLog {
+  id            String @id @default(cuid())
+  tenantId      String
+  integrationId String
+  level         String @default("INFO")
+  eventType     String
+  message       String
+  data          Json?
+
+  integration   Integration @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime @default(now())
+
+  @@index([tenantId, integrationId, createdAt])
+  @@index([tenantId, eventType])
+}
+
+model Webhook {
+  id              String @id @default(cuid())
+  tenantId        String
+  name            String
+  description     String?
+  url             String
+  secret          String?
+  signingAlgorithm String @default("hmac-sha256")
+  events          String[]
+  enabled         Boolean @default(true)
+  failureCount    Int     @default(0)
+  lastDeliveryAt  DateTime?
+  lastError       String?
+  createdById     String?
+
+  tenant          Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  deliveries      WebhookDelivery[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantId, enabled])
+  @@index([tenantId, createdAt])
+}
+
+model WebhookDelivery {
+  id             String                @id @default(cuid())
+  tenantId       String
+  webhookId      String
+  eventType      String
+  payload        Json?
+  status         WebhookDeliveryStatus @default(PENDING)
+  attempts       Int                   @default(0)
+  nextAttemptAt  DateTime?
+  lastError      String?
+  responseStatus Int?
+  responseBody   String?
+  requestHeaders Json?
+  deliveredAt    DateTime?
+
+  webhook        Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([tenantId, status])
+  @@index([tenantId, eventType])
+  @@index([webhookId, createdAt])
+}
+
+/* =========================
+   AI MODULE
+========================= */
+
+model AiTenantSettings {
+  id                  String  @id @default(cuid())
+  tenantId            String  @unique
+  enabled             Boolean @default(false)
+  defaultProvider     String  @default("local")
+  defaultModel        String  @default("taskbricks-local")
+  allowedProviders    String[]
+  monthlyTokenLimit   Int?
+  monthlyCostLimit    Decimal?
+  redactSensitiveData Boolean @default(true)
+  dataRetentionDays   Int?
+  policy              Json?
+
+  tenant              Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+}
+
+model AiAgent {
+  id              String @id @default(cuid())
+  tenantId        String
+  createdById     String?
+  name            String
+  description     String?
+  type            String @default("ASSISTANT")
+  provider        String @default("local")
+  model           String @default("taskbricks-local")
+  systemPrompt    String?
+  temperature     Float?
+  maxOutputTokens Int?
+  tools           String[]
+  guardrails      Json?
+  knowledgeScope  Json?
+  enabled         Boolean @default(true)
+  archivedAt      DateTime?
+
+  tenant          Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy       User?  @relation("AiAgentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  conversations   AiConversation[]
+  actions         AiAction[]
+  usageLogs       AiUsageLog[]
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([tenantId, enabled])
+  @@index([tenantId, archivedAt])
+  @@index([tenantId, provider, model])
+}
+
+model AiConversation {
+  id          String @id @default(cuid())
+  tenantId    String
+  agentId     String
+  userId      String
+  title       String?
+  status      AiConversationStatus @default(OPEN)
+  contextType String?
+  contextId   String?
+  metadata    Json?
+  summary     String?
+  archivedAt  DateTime?
+
+  tenant      Tenant  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agent       AiAgent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  user        User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  messages    AiMessage[]
+  actions     AiAction[]
+  usageLogs   AiUsageLog[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, userId, status])
+  @@index([tenantId, contextType, contextId])
+  @@index([agentId, createdAt])
+}
+
+model AiMessage {
+  id             String @id @default(cuid())
+  tenantId       String
+  conversationId String
+  userId         String?
+  role           AiMessageRole
+  content        String
+  contentJson    Json?
+  provider       String?
+  model          String?
+  generated      Boolean @default(false)
+  inputTokens    Int?
+  outputTokens   Int?
+  safetyMetadata Json?
+  metadata       Json?
+
+  tenant         Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user           User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  actions        AiAction[]
+  usageLogs      AiUsageLog[]
+
+  createdAt      DateTime @default(now())
+
+  @@index([tenantId, conversationId, createdAt])
+  @@index([tenantId, role])
+  @@index([tenantId, userId])
+}
+
+model AiUsageLog {
+  id             String @id @default(cuid())
+  tenantId       String
+  userId         String?
+  agentId        String?
+  conversationId String?
+  messageId      String?
+  provider       String
+  model          String
+  status         AiRequestStatus @default(COMPLETED)
+  inputTokens    Int @default(0)
+  outputTokens   Int @default(0)
+  totalTokens    Int @default(0)
+  estimatedCost  Decimal?
+  latencyMs      Int?
+  requestType    String?
+  requestHash    String?
+  error          String?
+  metadata       Json?
+
+  tenant         Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user           User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+  agent          AiAgent? @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  conversation   AiConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  message        AiMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime @default(now())
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, userId])
+  @@index([tenantId, provider, model])
+  @@index([conversationId])
+}
+
+model AiAction {
+  id             String @id @default(cuid())
+  tenantId       String
+  agentId        String?
+  conversationId String?
+  messageId      String?
+  requestedById  String?
+  type           String
+  status         AiActionStatus @default(PENDING)
+  entityType     String?
+  entityId       String?
+  input          Json?
+  output         Json?
+  error          String?
+  idempotencyKey String?
+  completedAt    DateTime?
+
+  tenant         Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  agent          AiAgent? @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  conversation   AiConversation? @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  message        AiMessage? @relation(fields: [messageId], references: [id], onDelete: SetNull)
+  requestedBy    User? @relation("AiActionRequester", fields: [requestedById], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([tenantId, idempotencyKey])
+  @@index([tenantId, status])
+  @@index([tenantId, type])
+  @@index([conversationId])
+}
+
+/* =========================
+   REPORTING / DASHBOARDS
+========================= */
+
+model Dashboard {
+  id          String @id @default(cuid())
+  tenantId    String
+  ownerId     String?
+  name        String
+  description String?
+  visibility  DashboardVisibility @default(PRIVATE)
+  layout      Json?
+  filters     Json?
+  refreshIntervalSeconds Int?
+  isDefault   Boolean @default(false)
+  archivedAt  DateTime?
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  owner       User? @relation("DashboardOwner", fields: [ownerId], references: [id], onDelete: SetNull)
+  widgets     DashboardWidget[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, ownerId])
+  @@index([tenantId, visibility])
+  @@index([tenantId, archivedAt])
+}
+
+model DashboardWidget {
+  id          String @id @default(cuid())
+  tenantId    String
+  dashboardId String
+  type        String
+  title       String
+  config      Json?
+  position    Json?
+  dataSource  Json?
+  refreshIntervalSeconds Int?
+  hidden      Boolean @default(false)
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  dashboard   Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, dashboardId])
+  @@index([tenantId, type])
+}
+
+model Report {
+  id          String @id @default(cuid())
+  tenantId    String
+  createdById String?
+  name        String
+  description String?
+  type        String
+  status      ReportStatus @default(DRAFT)
+  query       Json?
+  schedule    String?
+  timezone    String?
+  recipients  String[]
+  cacheTtlSeconds Int?
+  lastRunAt   DateTime?
+  nextRunAt   DateTime?
+  metadata    Json?
+  archivedAt  DateTime?
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy   User? @relation("ReportCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  executions  ReportExecution[]
+  exports     ReportExport[]
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, type])
+  @@index([tenantId, status])
+  @@index([tenantId, archivedAt])
+  @@index([tenantId, nextRunAt])
+}
+
+model ReportExecution {
+  id            String @id @default(cuid())
+  tenantId      String
+  reportId      String?
+  requestedById String?
+  type          String
+  status        ReportExecutionStatus @default(QUEUED)
+  parameters    Json?
+  result        Json?
+  summary       Json?
+  error         String?
+  rowCount      Int?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  durationMs    Int?
+  cacheKey      String?
+
+  tenant        Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  report        Report? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  requestedBy   User? @relation("ReportRunner", fields: [requestedById], references: [id], onDelete: SetNull)
+  exports       ReportExport[]
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([tenantId, type])
+  @@index([tenantId, status])
+  @@index([reportId, createdAt])
+  @@index([tenantId, cacheKey])
+}
+
+model ReportExport {
+  id            String @id @default(cuid())
+  tenantId      String
+  reportId      String?
+  executionId   String?
+  requestedById String?
+  format        ReportExportFormat
+  status        ReportExportStatus @default(QUEUED)
+  fileName      String?
+  fileUrl       String?
+  mimeType      String?
+  sizeBytes     Int?
+  expiresAt     DateTime?
+  error         String?
+
+  tenant        Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  report        Report? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+  execution     ReportExecution? @relation(fields: [executionId], references: [id], onDelete: SetNull)
+  requestedBy   User? @relation("ReportExporter", fields: [requestedById], references: [id], onDelete: SetNull)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([tenantId, status])
+  @@index([tenantId, format])
+  @@index([reportId, createdAt])
+}
+
+/* =========================
+   AUDIT / SYSTEM EVENTS
+========================= */
+
+model SecurityPolicy {
+  id                     String   @id @default(cuid())
+  tenantId               String   @unique
+  enforceIpAllowlist     Boolean  @default(false)
+  ipAllowlist            String[] @default([])
+  sessionTtlMinutes      Int      @default(10080)
+  maxSessionsPerUser     Int?
+  passwordMinLength      Int      @default(12)
+  passwordRequireUpper   Boolean  @default(true)
+  passwordRequireLower   Boolean  @default(true)
+  passwordRequireNumber  Boolean  @default(true)
+  passwordRequireSymbol  Boolean  @default(true)
+  passwordHistoryCount   Int      @default(0)
+  mfaRequired            Boolean  @default(false)
+  allowedLoginMethods    AuthLoginMethod[] @default([PASSWORD])
+  ssoRequired            Boolean  @default(false)
+  domainDiscoveryEnabled Boolean  @default(false)
+  trustedDeviceTtlDays   Int      @default(30)
+  auditRetentionDays     Int      @default(2555)
+  dataRetentionDays      Int?
+  maxUploadBytes         Int?
+  allowedUploadMimeTypes String[] @default([])
+  metadata               Json?
+
+  tenant                 Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdAt              DateTime @default(now())
+  updatedAt              DateTime @updatedAt
+
+  @@index([tenantId, enforceIpAllowlist])
+}
+
+model SecurityEvent {
+  id            String              @id @default(cuid())
+  tenantId      String?
+  actorId       String?
+  type          String
+  severity      SecurityEventSeverity @default(INFO)
+  status        SecurityEventStatus @default(OPEN)
+  source        String?
+  subjectType   String?
+  subjectId     String?
+  ipAddress     String?
+  userAgent     String?
+  requestId     String?
+  metadata      Json?
+  resolvedAt    DateTime?
+  resolvedById  String?
+
+  tenant        Tenant? @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor         User?   @relation("SecurityEventActor", fields: [actorId], references: [id], onDelete: SetNull)
+  resolvedBy    User?   @relation("SecurityEventResolver", fields: [resolvedById], references: [id], onDelete: SetNull)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, severity, status])
+  @@index([tenantId, type])
+  @@index([subjectType, subjectId])
+}
+
+model ComplianceJob {
+  id             String              @id @default(cuid())
+  tenantId       String
+  requestedById  String?
+  approvedById   String?
+  type           ComplianceJobType
+  status         ComplianceJobStatus @default(REQUESTED)
+  subjectType    String?
+  subjectId      String?
+  reason         String?
+  parameters     Json?
+  result         Json?
+  fileName       String?
+  fileUrl        String?
+  mimeType       String?
+  sizeBytes      Int?
+  error          String?
+  requestedAt    DateTime            @default(now())
+  approvedAt     DateTime?
+  startedAt      DateTime?
+  completedAt    DateTime?
+  expiresAt      DateTime?
+
+  tenant         Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  requestedBy    User?  @relation("ComplianceJobRequester", fields: [requestedById], references: [id], onDelete: SetNull)
+  approvedBy     User?  @relation("ComplianceJobApprover", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([tenantId, type, status])
+  @@index([tenantId, requestedAt])
+  @@index([subjectType, subjectId])
+}
+
+model ApiKey {
+  id          String       @id @default(cuid())
+  tenantId    String
+  createdById String?
+  name        String
+  keyHash     String       @unique
+  prefix      String
+  scopes      String[]     @default([])
+  status      ApiKeyStatus @default(ACTIVE)
+  metadata    Json?
+  lastUsedAt  DateTime?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+
+  tenant      Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy   User?  @relation("ApiKeyCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([tenantId, status])
+  @@index([tenantId, prefix])
+  @@index([tenantId, createdById])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  tenantId   String
+  actorId    String?
+  action     String
+  entityType String
+  entityId   String?
+  oldValue   Json?
+  newValue   Json?
+  ipAddress  String?
+  userAgent  String?
+
+  tenant     Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  createdAt  DateTime @default(now())
+
+  @@index([tenantId])
+  @@index([entityType, entityId])
+}
+
+model PlatformAuditLog {
+  id             String   @id @default(cuid())
+  actorId        String?
+  action         String
+  entityType     String
+  entityId       String?
+  targetTenantId String?
+  oldValue       Json?
+  newValue       Json?
+  ipAddress      String?
+  userAgent      String?
+
+  actor          User?    @relation("PlatformAuditActor", fields: [actorId], references: [id], onDelete: SetNull)
+  targetTenant   Tenant?  @relation(fields: [targetTenantId], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime @default(now())
+
+  @@index([actorId, createdAt])
+  @@index([targetTenantId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action, createdAt])
+}
+
+model SystemEvent {
+  id        String   @id @default(cuid())
+  type      String
+  payload   Json?
+  processed Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+}
