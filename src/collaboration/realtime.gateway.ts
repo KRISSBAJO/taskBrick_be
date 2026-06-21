@@ -252,14 +252,17 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     this.safeEmit(`user:${userId}`, 'internal_mail.updated', payload);
   }
 
-  emitTaskUpdated(tenantId: string, taskId: string, payload: Record<string, unknown>) {
+  emitTaskUpdated(_tenantId: string, taskId: string, payload: Record<string, unknown>) {
     this.safeEmit(`task:${taskId}`, 'task.updated', payload);
-    this.safeEmit(`tenant:${tenantId}`, 'task.updated', payload);
   }
 
-  emitMeetingUpdated(tenantId: string, meetingId: string, event: string, payload: Record<string, unknown>) {
-    this.safeEmit(`meeting:${meetingId}`, event, payload);
-    this.safeEmit(`tenant:${tenantId}`, event, payload);
+  async emitMeetingUpdated(tenantId: string, meetingId: string, event: string, payload: Record<string, unknown>) {
+    await this.emitToAuthorizedMeetingParticipants(
+      tenantId,
+      meetingId,
+      event,
+      this.sanitizeMeetingRealtimePayload(payload)
+    );
   }
 
   emitNotificationCreated(userId: string, payload: Record<string, unknown>) {
@@ -321,6 +324,80 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
         }`
       );
     }
+  }
+
+  private safeEmitMany(rooms: string[], event: string, payload: Record<string, unknown>) {
+    if (!this.server || rooms.length === 0) return;
+
+    try {
+      let target: any = this.server;
+      for (const room of rooms) {
+        target = target.to(room);
+      }
+      target.emit(event, payload);
+    } catch (error) {
+      this.logger.warn(
+        `Realtime emit failed event=${event} rooms=${rooms.join(',')}: ${
+          error instanceof Error ? error.message : 'unknown error'
+        }`
+      );
+    }
+  }
+
+  private async emitToAuthorizedMeetingParticipants(
+    tenantId: string,
+    meetingId: string,
+    event: string,
+    payload: Record<string, unknown>
+  ) {
+    const meeting = await this.prisma.meeting.findFirst({
+      where: { id: meetingId, tenantId },
+      select: {
+        hostId: true,
+        createdById: true,
+        attendees: {
+          where: {
+            userId: { not: null },
+            status: { not: MeetingAttendeeStatus.REMOVED }
+          },
+          select: { userId: true }
+        }
+      }
+    });
+
+    if (!meeting) return;
+
+    const rooms = new Set<string>([`meeting:${meetingId}`]);
+    for (const userId of [meeting.hostId, meeting.createdById]) {
+      if (userId) rooms.add(`user:${userId}`);
+    }
+    for (const attendee of meeting.attendees) {
+      if (attendee.userId) rooms.add(`user:${attendee.userId}`);
+    }
+
+    this.safeEmitMany([...rooms], event, payload);
+  }
+
+  private sanitizeMeetingRealtimePayload(payload: Record<string, unknown>) {
+    const sanitized = { ...payload };
+    if ('meeting' in sanitized) {
+      sanitized.meeting = this.meetingRealtimeSummary(sanitized.meeting);
+    }
+    return sanitized;
+  }
+
+  private meetingRealtimeSummary(meeting: unknown) {
+    if (!meeting || typeof meeting !== 'object') return undefined;
+    const source = meeting as Record<string, unknown>;
+    return {
+      id: source.id,
+      status: source.status,
+      visibility: source.visibility,
+      approvalStatus: source.approvalStatus,
+      startAt: source.startAt,
+      endAt: source.endAt,
+      updatedAt: source.updatedAt
+    };
   }
 
   private async authenticate(client: Socket): Promise<AuthenticatedUser> {

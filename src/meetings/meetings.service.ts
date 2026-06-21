@@ -1247,7 +1247,7 @@ export class MeetingsService {
   }
 
   private emitMeeting(tenantId: string, meetingId: string, event: string, payload: Record<string, unknown>) {
-    this.realtimeGateway.emitMeetingUpdated(tenantId, meetingId, event, payload);
+    void this.realtimeGateway.emitMeetingUpdated(tenantId, meetingId, event, payload);
   }
 
   private toJsonValue(value: unknown): Prisma.InputJsonValue {

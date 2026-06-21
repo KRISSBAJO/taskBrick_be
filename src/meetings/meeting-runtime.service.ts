@@ -1032,7 +1032,7 @@ export class MeetingRuntimeService {
   }
 
   private emit(tenantId: string, meetingId: string, event: string, payload: Record<string, unknown>) {
-    this.realtimeGateway.emitMeetingUpdated(tenantId, meetingId, event, payload);
+    void this.realtimeGateway.emitMeetingUpdated(tenantId, meetingId, event, payload);
   }
 
   private toJson(value: unknown): Prisma.InputJsonValue {

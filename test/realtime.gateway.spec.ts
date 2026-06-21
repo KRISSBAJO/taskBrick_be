@@ -62,6 +62,61 @@ function createGateway() {
 }
 
 describe('RealtimeGateway authorization', () => {
+  it('emits task updates only to the task room', () => {
+    const { gateway } = createGateway();
+    const emit = jest.fn();
+    const to = jest.fn((_room: string) => ({ emit }));
+    (gateway as unknown as { server: { to: typeof to } }).server = { to };
+
+    gateway.emitTaskUpdated('tenant-1', 'task-1', { taskId: 'task-1', status: 'DONE' });
+
+    expect(to).toHaveBeenCalledTimes(1);
+    expect(to).toHaveBeenCalledWith('task:task-1');
+    expect(emit).toHaveBeenCalledWith('task.updated', { taskId: 'task-1', status: 'DONE' });
+  });
+
+  it('emits sanitized meeting updates only to the meeting and participant user rooms', async () => {
+    const { gateway, prisma } = createGateway();
+    const emit = jest.fn();
+    const target = { to: jest.fn((_room: string) => target), emit };
+    (gateway as unknown as { server: typeof target }).server = target;
+    prisma.meeting.findFirst.mockResolvedValue({
+      hostId: 'host-1',
+      createdById: 'creator-1',
+      attendees: [{ userId: 'attendee-1' }, { userId: 'host-1' }]
+    });
+
+    await gateway.emitMeetingUpdated('tenant-1', 'meeting-1', 'meeting.updated', {
+      meetingId: 'meeting-1',
+      meeting: {
+        id: 'meeting-1',
+        title: 'Private title',
+        clientEmail: 'client@example.com',
+        status: 'LIVE',
+        visibility: 'PRIVATE',
+        updatedAt: '2026-06-21T00:00:00.000Z'
+      }
+    });
+
+    expect(target.to).toHaveBeenCalledWith('meeting:meeting-1');
+    expect(target.to).toHaveBeenCalledWith('user:host-1');
+    expect(target.to).toHaveBeenCalledWith('user:creator-1');
+    expect(target.to).toHaveBeenCalledWith('user:attendee-1');
+    expect(target.to).not.toHaveBeenCalledWith('tenant:tenant-1');
+    expect(emit).toHaveBeenCalledWith('meeting.updated', {
+      meetingId: 'meeting-1',
+      meeting: {
+        id: 'meeting-1',
+        status: 'LIVE',
+        visibility: 'PRIVATE',
+        approvalStatus: undefined,
+        startAt: undefined,
+        endAt: undefined,
+        updatedAt: '2026-06-21T00:00:00.000Z'
+      }
+    });
+  });
+
   it('rejects task room joins when project policy does not allow the task', async () => {
     const { gateway, prisma, projectAccessPolicy } = createGateway();
     const { socket } = createSocket();

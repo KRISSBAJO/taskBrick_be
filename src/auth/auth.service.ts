@@ -468,6 +468,41 @@ export class AuthService {
     return { success: true };
   }
 
+  async logoutByRefreshToken(refreshToken: string | undefined, meta: RequestMeta) {
+    if (!refreshToken) return { success: true };
+
+    try {
+      const payload = await this.verifyRefreshToken(refreshToken);
+      const session = await this.prisma.authSession.findUnique({
+        where: { id: payload.sessionId }
+      });
+
+      if (!session || session.revokedAt) return { success: true };
+
+      const tokenMatches = await bcrypt.compare(refreshToken, session.refreshTokenHash);
+      if (!tokenMatches) return { success: true };
+
+      await this.prisma.authSession.update({
+        where: { id: session.id },
+        data: { revokedAt: new Date() }
+      });
+
+      await this.auditService.record({
+        tenantId: session.tenantId,
+        actorId: session.userId,
+        action: 'auth.logout',
+        entityType: 'AuthSession',
+        entityId: session.id,
+        ipAddress: meta.ipAddress,
+        userAgent: meta.userAgent
+      });
+    } catch {
+      return { success: true };
+    }
+
+    return { success: true };
+  }
+
   async forgotPassword(dto: ForgotPasswordDto, meta: RequestMeta): Promise<LifecycleResponse> {
     const tenantSlug = dto.tenantSlug.toLowerCase().trim();
     const email = dto.email.toLowerCase().trim();

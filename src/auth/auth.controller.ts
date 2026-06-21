@@ -1,4 +1,5 @@
-import { Body, Controller, Get, Post, Req, UseGuards, Version } from '@nestjs/common';
+import { Body, Controller, Get, Post, Req, Res, UnauthorizedException, UseGuards, Version } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import {
   ApiBearerAuth,
   ApiCreatedResponse,
@@ -8,10 +9,11 @@ import {
   ApiUnauthorizedResponse
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
-import { Request } from 'express';
+import type { CookieOptions, Request, Response } from 'express';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { AuthService } from './auth.service';
+import { AUTH_REFRESH_COOKIE, AUTH_TRUSTED_DEVICE_COOKIE } from './auth.constants';
 import { AuthResponseDto } from './dto/auth-response.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -29,7 +31,13 @@ import { AuthenticatedUser } from './interfaces/authenticated-user.interface';
 @ApiTags('auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  private static readonly refreshCookieMaxAgeMs = 7 * 24 * 60 * 60 * 1000;
+  private static readonly trustedDeviceCookieMaxAgeMs = 30 * 24 * 60 * 60 * 1000;
+
+  constructor(
+    private readonly authService: AuthService,
+    private readonly configService: ConfigService
+  ) {}
 
   @Get('status')
   @Version('1')
@@ -46,8 +54,8 @@ export class AuthController {
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @ApiOperation({ summary: 'Register a tenant owner and bootstrap a new tenant' })
   @ApiCreatedResponse({ type: AuthResponseDto })
-  register(@Body() dto: RegisterDto, @Req() request: Request) {
-    return this.authService.register(dto, this.getRequestMeta(request));
+  async register(@Body() dto: RegisterDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    return this.withAuthCookies(response, await this.authService.register(dto, this.getRequestMeta(request)));
   }
 
   @Post('verify-email')
@@ -55,8 +63,8 @@ export class AuthController {
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @ApiOperation({ summary: 'Verify an email address with a single-use token' })
   @ApiOkResponse({ type: AuthResponseDto })
-  verifyEmail(@Body() dto: VerifyEmailDto, @Req() request: Request) {
-    return this.authService.verifyEmail(dto, this.getRequestMeta(request));
+  async verifyEmail(@Body() dto: VerifyEmailDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    return this.withAuthCookies(response, await this.authService.verifyEmail(dto, this.getRequestMeta(request)));
   }
 
   @Post('resend-verification')
@@ -73,8 +81,8 @@ export class AuthController {
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @ApiOperation({ summary: 'Accept an invitation, set password, and activate account' })
   @ApiOkResponse({ type: AuthResponseDto })
-  acceptInvite(@Body() dto: AcceptInviteDto, @Req() request: Request) {
-    return this.authService.acceptInvite(dto, this.getRequestMeta(request));
+  async acceptInvite(@Body() dto: AcceptInviteDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    return this.withAuthCookies(response, await this.authService.acceptInvite(dto, this.getRequestMeta(request)));
   }
 
   @Post('login')
@@ -83,8 +91,12 @@ export class AuthController {
   @ApiOperation({ summary: 'Log in with tenant slug, email, and password' })
   @ApiOkResponse({ type: AuthResponseDto })
   @ApiUnauthorizedResponse({ description: 'Invalid credentials or inactive account' })
-  login(@Body() dto: LoginDto, @Req() request: Request) {
-    return this.authService.login(dto, this.getRequestMeta(request));
+  async login(@Body() dto: LoginDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    const trustedDeviceToken = dto.trustedDeviceToken ?? this.readCookie(request, AUTH_TRUSTED_DEVICE_COOKIE);
+    return this.withAuthCookies(
+      response,
+      await this.authService.login({ ...dto, trustedDeviceToken }, this.getRequestMeta(request))
+    );
   }
 
   @Post('mfa/verify-login')
@@ -92,8 +104,8 @@ export class AuthController {
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @ApiOperation({ summary: 'Complete login by verifying MFA challenge' })
   @ApiOkResponse({ type: AuthResponseDto })
-  verifyMfaLogin(@Body() dto: VerifyMfaLoginDto, @Req() request: Request) {
-    return this.authService.verifyMfaLogin(dto, this.getRequestMeta(request));
+  async verifyMfaLogin(@Body() dto: VerifyMfaLoginDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    return this.withAuthCookies(response, await this.authService.verifyMfaLogin(dto, this.getRequestMeta(request)));
   }
 
   @Post('sso/callback')
@@ -101,8 +113,8 @@ export class AuthController {
   @Throttle({ default: { limit: 40, ttl: 60_000 } })
   @ApiOperation({ summary: 'Complete OAuth/OIDC SSO login and issue application tokens' })
   @ApiOkResponse({ type: AuthResponseDto })
-  ssoCallback(@Body() dto: SsoCallbackDto, @Req() request: Request) {
-    return this.authService.completeSsoLogin(dto, this.getRequestMeta(request));
+  async ssoCallback(@Body() dto: SsoCallbackDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    return this.withAuthCookies(response, await this.authService.completeSsoLogin(dto, this.getRequestMeta(request)));
   }
 
   @Post('refresh')
@@ -111,21 +123,24 @@ export class AuthController {
   @ApiOperation({ summary: 'Rotate refresh token and issue new access token' })
   @ApiOkResponse({ type: AuthResponseDto })
   @ApiUnauthorizedResponse({ description: 'Invalid or revoked refresh token' })
-  refresh(@Body() dto: RefreshTokenDto, @Req() request: Request) {
-    return this.authService.refresh(dto.refreshToken, this.getRequestMeta(request));
+  async refresh(@Body() dto: RefreshTokenDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    const refreshToken = dto?.refreshToken ?? this.readCookie(request, AUTH_REFRESH_COOKIE);
+
+    if (!refreshToken) {
+      throw new UnauthorizedException('Refresh token is required');
+    }
+
+    return this.withAuthCookies(response, await this.authService.refresh(refreshToken, this.getRequestMeta(request)));
   }
 
   @Post('logout')
   @Version('1')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Revoke the current auth session' })
   @ApiOkResponse({ schema: { example: { success: true } } })
-  logout(
-    @CurrentUser() user: AuthenticatedUser,
-    @Req() request: Request
-  ) {
-    return this.authService.logout(user, this.getRequestMeta(request));
+  async logout(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    const refreshToken = this.readCookie(request, AUTH_REFRESH_COOKIE);
+    this.clearAuthCookies(response);
+    return this.authService.logoutByRefreshToken(refreshToken, this.getRequestMeta(request));
   }
 
   @Post('forgot-password')
@@ -175,5 +190,88 @@ export class AuthController {
       ipAddress: request.ip,
       userAgent: request.header('user-agent')
     };
+  }
+
+  private withAuthCookies<T>(response: Response, result: T): T {
+    if (!this.isAuthResponse(result)) {
+      return result;
+    }
+
+    this.setAuthCookies(response, result);
+    return this.browserAuthResponse(result) as T;
+  }
+
+  private isAuthResponse(value: unknown): value is AuthResponseDto {
+    return Boolean(
+      value &&
+      typeof value === 'object' &&
+      'accessToken' in value &&
+      'user' in value
+    );
+  }
+
+  private setAuthCookies(response: Response, auth: AuthResponseDto) {
+    const options = this.authCookieOptions();
+
+    if (auth.refreshToken) {
+      response.cookie(AUTH_REFRESH_COOKIE, auth.refreshToken, {
+        ...options,
+        maxAge: AuthController.refreshCookieMaxAgeMs
+      });
+    }
+
+    if (auth.trustedDeviceToken) {
+      response.cookie(AUTH_TRUSTED_DEVICE_COOKIE, auth.trustedDeviceToken, {
+        ...options,
+        maxAge: AuthController.trustedDeviceCookieMaxAgeMs
+      });
+    }
+  }
+
+  private clearAuthCookies(response: Response) {
+    const options = this.authCookieOptions();
+    response.clearCookie(AUTH_REFRESH_COOKIE, options);
+    response.clearCookie(AUTH_TRUSTED_DEVICE_COOKIE, options);
+  }
+
+  private browserAuthResponse(auth: AuthResponseDto): AuthResponseDto {
+    return {
+      accessToken: auth.accessToken,
+      user: auth.user
+    };
+  }
+
+  private authCookieOptions(): CookieOptions {
+    const secure =
+      this.configService.get<string>('app.nodeEnv', 'development') === 'production' ||
+      this.configService.get<boolean>('security.cookieSecure', false);
+    const domain = this.configService.get<string>('security.cookieDomain');
+
+    return {
+      httpOnly: true,
+      secure,
+      sameSite: secure ? 'none' : 'lax',
+      path: '/',
+      ...(domain ? { domain } : {})
+    };
+  }
+
+  private readCookie(request: Request, name: string) {
+    const header = request.headers.cookie;
+    if (!header) return undefined;
+
+    for (const part of header.split(';')) {
+      const [rawName, ...rawValue] = part.trim().split('=');
+      if (rawName !== name) continue;
+
+      const value = rawValue.join('=');
+      try {
+        return decodeURIComponent(value);
+      } catch {
+        return value;
+      }
+    }
+
+    return undefined;
   }
 }

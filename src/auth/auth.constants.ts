@@ -80,3 +80,6 @@ export const DEFAULT_ROLES = [
 
 export const permissionKey = (permission: { action: string; subject: string }) =>
   `${permission.action}:${permission.subject}`;
+
+export const AUTH_REFRESH_COOKIE = 'taskbricks.refresh';
+export const AUTH_TRUSTED_DEVICE_COOKIE = 'taskbricks.trusted_device';

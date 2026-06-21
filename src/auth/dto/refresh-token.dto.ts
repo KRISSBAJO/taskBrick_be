@@ -1,8 +1,9 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsJWT } from 'class-validator';
+import { IsJWT, IsOptional } from 'class-validator';
 
 export class RefreshTokenDto {
-  @ApiProperty({ description: 'Refresh token returned by login or register' })
+  @ApiProperty({ description: 'Refresh token for non-browser clients. Browser clients use the HttpOnly refresh cookie.', required: false })
+  @IsOptional()
   @IsJWT()
-  refreshToken!: string;
+  refreshToken?: string;
 }

@@ -1,4 +1,4 @@
-import { ApiProperty } from '@nestjs/swagger';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 class AuthUserDto {
   @ApiProperty()
@@ -39,12 +39,16 @@ export class AuthResponseDto {
   @ApiProperty()
   accessToken!: string;
 
-  @ApiProperty()
-  refreshToken!: string;
+  @ApiPropertyOptional({
+    description: 'Deprecated for browsers. Refresh tokens are issued in an HttpOnly cookie.'
+  })
+  refreshToken?: string;
 
   @ApiProperty({ type: AuthUserDto })
   user!: AuthUserDto;
 
-  @ApiProperty({ required: false })
+  @ApiPropertyOptional({
+    description: 'Deprecated for browsers. Trusted-device tokens are issued in an HttpOnly cookie.'
+  })
   trustedDeviceToken?: string;
 }
