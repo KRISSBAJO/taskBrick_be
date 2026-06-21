@@ -31,8 +31,12 @@ const requiredEndpoints: RequiredEndpoint[] = [
   { method: 'get', path: '/api/v1/teams', workflow: 'team selector and capacity views', auth: 'bearer' },
   { method: 'get', path: '/api/v1/projects', workflow: 'project portfolio list', auth: 'bearer' },
   { method: 'post', path: '/api/v1/projects', workflow: 'create project flow', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/projects/{projectId}', workflow: 'project detail load', auth: 'bearer' },
+  { method: 'patch', path: '/api/v1/projects/{projectId}', workflow: 'update project flow', auth: 'bearer' },
   { method: 'get', path: '/api/v1/tasks', workflow: 'task list and board hydration', auth: 'bearer' },
   { method: 'post', path: '/api/v1/tasks', workflow: 'create task flow', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/tasks/{taskId}', workflow: 'task detail load', auth: 'bearer' },
+  { method: 'patch', path: '/api/v1/tasks/{taskId}', workflow: 'update task flow', auth: 'bearer' },
   { method: 'get', path: '/api/v1/agile/projects/{projectId}/board', workflow: 'kanban board hydration', auth: 'bearer' },
   { method: 'patch', path: '/api/v1/agile/tasks/{taskId}/order', workflow: 'drag task board order update', auth: 'bearer' },
   { method: 'patch', path: '/api/v1/agile/tasks/{taskId}/status', workflow: 'drag task status update', auth: 'bearer' },
@@ -43,6 +47,46 @@ const requiredEndpoints: RequiredEndpoint[] = [
 ];
 
 const frontendClientChecks: FrontendClientCheck[] = [
+  {
+    helper: 'listProjects',
+    routeSnippets: ['/projects?${params.toString()}', '/api/v1/projects'],
+    workflow: 'project portfolio list'
+  },
+  {
+    helper: 'getProject',
+    routeSnippets: ['/projects/${projectId}', '/api/v1/projects/{projectId}'],
+    workflow: 'project detail load'
+  },
+  {
+    helper: 'createProject',
+    routeSnippets: ['"/projects"', '/api/v1/projects'],
+    workflow: 'create project flow'
+  },
+  {
+    helper: 'updateProject',
+    routeSnippets: ['/projects/${projectId}', '/api/v1/projects/{projectId}'],
+    workflow: 'update project flow'
+  },
+  {
+    helper: 'listTasks',
+    routeSnippets: ['/tasks?${params.toString()}', '/api/v1/tasks'],
+    workflow: 'task list and board hydration'
+  },
+  {
+    helper: 'getTask',
+    routeSnippets: ['/tasks/${taskId}', '/api/v1/tasks/{taskId}'],
+    workflow: 'task detail load'
+  },
+  {
+    helper: 'createTask',
+    routeSnippets: ['"/tasks"', '/api/v1/tasks'],
+    workflow: 'create task flow'
+  },
+  {
+    helper: 'updateTask',
+    routeSnippets: ['/tasks/${taskId}', '/api/v1/tasks/{taskId}'],
+    workflow: 'update task flow'
+  },
   {
     helper: 'getProjectBoard',
     routeSnippets: ['/agile/projects/${projectId}/board', '/api/v1/agile/projects/{projectId}/board'],
@@ -82,8 +126,10 @@ function readFrontendClient() {
 
 function findMissingFrontendClientChecks(frontendClient: string) {
   return frontendClientChecks.filter((check) => {
-    const helperIndex = frontendClient.indexOf(`function ${check.helper}`);
-    if (helperIndex === -1) return true;
+    const helperMatch = new RegExp(`(?:export\\s+)?function\\s+${check.helper}\\s*\\(`).exec(frontendClient);
+    if (!helperMatch) return true;
+
+    const helperIndex = helperMatch.index;
 
     const nextFunctionIndex = frontendClient.indexOf('\nexport function ', helperIndex + 1);
     const helperSource =

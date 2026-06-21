@@ -64,17 +64,17 @@ export class UpdateTaskDto {
   @IsEnum(TaskPriority)
   priority?: TaskPriority;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsDateString()
   startDate?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsDateString()
   dueDate?: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsDateString()
   completedAt?: string | null;

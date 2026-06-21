@@ -47,17 +47,17 @@ export class UpdateProjectDto {
   @IsEnum(Visibility)
   visibility?: Visibility;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsDateString()
   startDate?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsDateString()
   dueDate?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsDateString()
   completedAt?: string | null;
