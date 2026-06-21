@@ -16,7 +16,7 @@ interface RequiredEndpoint {
 
 interface FrontendClientCheck {
   helper: string;
-  route: string;
+  routeSnippets: string[];
   workflow: string;
 }
 
@@ -45,13 +45,18 @@ const requiredEndpoints: RequiredEndpoint[] = [
 const frontendClientChecks: FrontendClientCheck[] = [
   {
     helper: 'getProjectBoard',
-    route: '/agile/projects/${projectId}/board',
+    routeSnippets: ['/agile/projects/${projectId}/board', '/api/v1/agile/projects/{projectId}/board'],
     workflow: 'kanban board hydration'
   },
   {
     helper: 'updateTaskBoardOrder',
-    route: '/agile/tasks/${taskId}/order',
+    routeSnippets: ['/agile/tasks/${taskId}/order', '/api/v1/agile/tasks/{taskId}/order'],
     workflow: 'drag task board order update'
+  },
+  {
+    helper: 'updateTaskStatus',
+    routeSnippets: ['/agile/tasks/${taskId}/status', '/api/v1/agile/tasks/{taskId}/status'],
+    workflow: 'direct task status update'
   }
 ];
 
@@ -86,7 +91,7 @@ function findMissingFrontendClientChecks(frontendClient: string) {
         ? frontendClient.slice(helperIndex)
         : frontendClient.slice(helperIndex, nextFunctionIndex);
 
-    return !helperSource.includes(check.route);
+    return !check.routeSnippets.some((routeSnippet) => helperSource.includes(routeSnippet));
   });
 }
 
@@ -128,7 +133,7 @@ function main() {
     if (missingFrontendClientChecks.length) {
       console.error('Frontend client helper route checks failed:');
       missingFrontendClientChecks.forEach((check) =>
-        console.error(`- ${check.helper} must call ${check.route} (${check.workflow})`)
+        console.error(`- ${check.helper} must call one of ${check.routeSnippets.join(', ')} (${check.workflow})`)
       );
     }
 

@@ -32632,11 +32632,13 @@
               "TESTING",
               "DONE",
               "CANCELLED"
-            ]
+            ],
+            "nullable": true
           },
           "wipLimit": {
-            "type": "object",
-            "minimum": 1
+            "type": "number",
+            "minimum": 1,
+            "nullable": true
           },
           "isCollapsed": {
             "type": "boolean"
@@ -32690,11 +32692,11 @@
             ]
           },
           "sprintId": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           },
           "boardColumnId": {
-            "type": "object",
+            "type": "string",
             "nullable": true
           }
         },

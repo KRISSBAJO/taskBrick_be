@@ -13,12 +13,12 @@ export class UpdateTaskOrderDto {
   @IsEnum(TaskStatus)
   status?: TaskStatus;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsString()
   sprintId?: string | null;
 
-  @ApiPropertyOptional({ nullable: true })
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsString()
   boardColumnId?: string | null;

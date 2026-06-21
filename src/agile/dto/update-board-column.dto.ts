@@ -9,12 +9,12 @@ export class UpdateBoardColumnDto {
   @MaxLength(80)
   name?: string;
 
-  @ApiPropertyOptional({ enum: TaskStatus })
+  @ApiPropertyOptional({ enum: TaskStatus, nullable: true })
   @IsOptional()
   @IsEnum(TaskStatus)
   status?: TaskStatus | null;
 
-  @ApiPropertyOptional({ minimum: 1 })
+  @ApiPropertyOptional({ type: Number, minimum: 1, nullable: true })
   @IsOptional()
   @IsInt()
   @Min(1)
