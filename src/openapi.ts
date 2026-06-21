@@ -1,6 +1,7 @@
 import { INestApplication, VersioningType } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { DocumentBuilder, OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
+import { applyOpenApiResponseContract } from './openapi-response-contract';
 
 interface ApiRoutingOptions {
   apiPrefix: string;
@@ -52,9 +53,11 @@ export function createTaskBricksOpenApiDocument(
     builder = builder.addServer(server);
   }
 
-  return SwaggerModule.createDocument(app, builder.build(), {
+  const document = SwaggerModule.createDocument(app, builder.build(), {
     deepScanRoutes: true,
     operationIdFactory: (controllerKey: string, methodKey: string) =>
       `${controllerKey.replace(/Controller$/, '')}_${methodKey}`
   });
+
+  return applyOpenApiResponseContract(document);
 }
