@@ -43,22 +43,22 @@ export class BulkTaskOperationDto {
   @IsEnum(TaskType)
   type?: TaskType;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsString()
   sprintId?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsString()
   boardColumnId?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsDateString()
   dueDate?: string | null;
 
-  @ApiPropertyOptional({ minimum: 0 })
+  @ApiPropertyOptional({ type: Number, nullable: true, minimum: 0 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

@@ -25,11 +25,11 @@ export class CreateTaskSavedViewDto {
   @IsEnum(Visibility)
   visibility?: Visibility;
 
-  @ApiProperty()
+  @ApiProperty({ type: 'object', additionalProperties: true })
   @IsObject()
   filters!: Record<string, unknown>;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
   @IsOptional()
   @IsObject()
   columns?: Record<string, unknown>;

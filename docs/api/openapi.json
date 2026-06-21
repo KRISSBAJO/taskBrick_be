@@ -30774,7 +30774,8 @@
             "default": false
           },
           "config": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           },
           "sortOrder": {
             "type": "number",
@@ -30821,16 +30822,19 @@
             ]
           },
           "workspaceId": {
-            "type": "object"
+            "type": "string",
+            "nullable": true
           },
           "projectId": {
-            "type": "object"
+            "type": "string",
+            "nullable": true
           },
           "required": {
             "type": "boolean"
           },
           "config": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           },
           "sortOrder": {
             "type": "number",
@@ -30869,10 +30873,12 @@
             "default": "PRIVATE"
           },
           "filters": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           },
           "columns": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           },
           "sortBy": {
             "type": "string"
@@ -30901,7 +30907,8 @@
             "type": "string"
           },
           "description": {
-            "type": "object"
+            "type": "string",
+            "nullable": true
           },
           "visibility": {
             "type": "string",
@@ -30914,20 +30921,24 @@
             ]
           },
           "filters": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           },
           "columns": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           },
           "sortBy": {
-            "type": "object"
+            "type": "string",
+            "nullable": true
           },
           "sortDirection": {
             "type": "string",
             "enum": [
               "asc",
               "desc"
-            ]
+            ],
+            "nullable": true
           },
           "isDefault": {
             "type": "boolean"
@@ -30989,16 +31000,20 @@
             ]
           },
           "sprintId": {
-            "type": "object"
+            "type": "string",
+            "nullable": true
           },
           "boardColumnId": {
-            "type": "object"
+            "type": "string",
+            "nullable": true
           },
           "dueDate": {
-            "type": "object"
+            "type": "string",
+            "nullable": true
           },
           "storyPoints": {
-            "type": "object",
+            "type": "number",
+            "nullable": true,
             "minimum": 0
           },
           "assigneeIds": {

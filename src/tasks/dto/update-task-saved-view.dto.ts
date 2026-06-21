@@ -9,7 +9,7 @@ export class UpdateTaskSavedViewDto {
   @MaxLength(120)
   name?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsString()
   @MaxLength(500)
@@ -20,22 +20,22 @@ export class UpdateTaskSavedViewDto {
   @IsEnum(Visibility)
   visibility?: Visibility;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
   @IsOptional()
   @IsObject()
   filters?: Record<string, unknown>;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
   @IsOptional()
   @IsObject()
   columns?: Record<string, unknown>;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsString()
   sortBy?: string | null;
 
-  @ApiPropertyOptional({ enum: ['asc', 'desc'] })
+  @ApiPropertyOptional({ enum: ['asc', 'desc'], nullable: true })
   @IsOptional()
   @IsString()
   sortDirection?: 'asc' | 'desc' | null;

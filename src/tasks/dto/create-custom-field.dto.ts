@@ -48,7 +48,7 @@ export class CreateCustomFieldDto {
   @IsBoolean()
   required?: boolean;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
   @IsOptional()
   @IsObject()
   config?: Record<string, unknown>;

@@ -68,6 +68,58 @@ const requiredEndpoints: RequiredEndpoint[] = [
   { method: 'post', path: '/api/v1/tasks', workflow: 'create task flow', auth: 'bearer' },
   { method: 'get', path: '/api/v1/tasks/{taskId}', workflow: 'task detail load', auth: 'bearer' },
   { method: 'patch', path: '/api/v1/tasks/{taskId}', workflow: 'update task flow', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/tasks/{taskId}', workflow: 'task delete flow', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/tasks/{taskId}/archive', workflow: 'task archive flow', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/tasks/{taskId}/restore', workflow: 'task restore flow', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/tasks/labels', workflow: 'task label list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/tasks/labels', workflow: 'task label create', auth: 'bearer' },
+  { method: 'patch', path: '/api/v1/tasks/labels/{labelId}', workflow: 'task label update', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/tasks/labels/{labelId}', workflow: 'task label delete', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/tasks/taxonomy', workflow: 'task taxonomy load', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/tasks/custom-fields', workflow: 'custom field list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/tasks/custom-fields', workflow: 'custom field create', auth: 'bearer' },
+  { method: 'patch', path: '/api/v1/tasks/custom-fields/{customFieldId}', workflow: 'custom field update', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/tasks/custom-fields/{customFieldId}', workflow: 'custom field delete', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/tasks/custom-fields/{customFieldId}/archive', workflow: 'custom field archive', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/tasks/custom-fields/{customFieldId}/restore', workflow: 'custom field restore', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/tasks/saved-views', workflow: 'task saved view list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/tasks/saved-views', workflow: 'task saved view create', auth: 'bearer' },
+  { method: 'patch', path: '/api/v1/tasks/saved-views/{viewId}', workflow: 'task saved view update', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/tasks/saved-views/{viewId}', workflow: 'task saved view delete', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/tasks/bulk', workflow: 'bulk task operation', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/tasks/{taskId}/assignees', workflow: 'task assignee list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/tasks/{taskId}/assignees', workflow: 'task assignee add', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/tasks/{taskId}/assignees/{userId}', workflow: 'task assignee remove', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/tasks/{taskId}/watchers', workflow: 'task watcher list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/tasks/{taskId}/watchers', workflow: 'task watcher add', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/tasks/{taskId}/watchers/{userId}', workflow: 'task watcher remove', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/tasks/{taskId}/comments', workflow: 'task comment list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/tasks/{taskId}/comments', workflow: 'task comment create', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/tasks/{taskId}/comments/{commentId}', workflow: 'task comment delete', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/tasks/{taskId}/attachments', workflow: 'task attachment list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/tasks/{taskId}/attachments', workflow: 'task attachment create', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/tasks/{taskId}/attachments/{attachmentId}', workflow: 'task attachment delete', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/tasks/{taskId}/checklists', workflow: 'task checklist list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/tasks/{taskId}/checklists', workflow: 'task checklist create', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/tasks/{taskId}/checklists/{checklistId}', workflow: 'task checklist delete', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/tasks/{taskId}/checklists/{checklistId}/items', workflow: 'task checklist item create', auth: 'bearer' },
+  { method: 'patch', path: '/api/v1/tasks/{taskId}/checklists/{checklistId}/items/{itemId}', workflow: 'task checklist item update', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/tasks/{taskId}/checklists/{checklistId}/items/{itemId}', workflow: 'task checklist item delete', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/tasks/{taskId}/labels', workflow: 'task label assignment list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/tasks/{taskId}/labels', workflow: 'task label assignment add', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/tasks/{taskId}/labels/{labelId}', workflow: 'task label assignment remove', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/tasks/{taskId}/dependencies', workflow: 'task dependency list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/tasks/{taskId}/dependencies', workflow: 'task dependency create', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/tasks/{taskId}/dependencies/{dependencyId}', workflow: 'task dependency delete', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/tasks/{taskId}/activities', workflow: 'task activity list', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/agile/sprints', workflow: 'sprint list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/agile/sprints', workflow: 'sprint create', auth: 'bearer' },
+  { method: 'patch', path: '/api/v1/agile/sprints/{sprintId}', workflow: 'sprint update', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/agile/sprints/{sprintId}', workflow: 'sprint delete', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/agile/sprints/{sprintId}/start', workflow: 'sprint start', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/agile/sprints/{sprintId}/complete', workflow: 'sprint complete', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/agile/sprints/{sprintId}/tasks', workflow: 'sprint task add', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/agile/sprints/{sprintId}/tasks/{taskId}', workflow: 'sprint task remove', auth: 'bearer' },
   { method: 'get', path: '/api/v1/agile/projects/{projectId}/board', workflow: 'kanban board hydration', auth: 'bearer' },
   { method: 'patch', path: '/api/v1/agile/tasks/{taskId}/order', workflow: 'drag task board order update', auth: 'bearer' },
   { method: 'patch', path: '/api/v1/agile/tasks/{taskId}/status', workflow: 'drag task status update', auth: 'bearer' },
@@ -272,6 +324,266 @@ const frontendClientChecks: FrontendClientCheck[] = [
     helper: 'updateTask',
     routeSnippets: ['/tasks/${taskId}', '/api/v1/tasks/{taskId}'],
     workflow: 'update task flow'
+  },
+  {
+    helper: 'deleteTask',
+    routeSnippets: ['/api/v1/tasks/{taskId}'],
+    workflow: 'task delete flow'
+  },
+  {
+    helper: 'archiveTask',
+    routeSnippets: ['/api/v1/tasks/{taskId}/archive'],
+    workflow: 'task archive flow'
+  },
+  {
+    helper: 'restoreTask',
+    routeSnippets: ['/api/v1/tasks/{taskId}/restore'],
+    workflow: 'task restore flow'
+  },
+  {
+    helper: 'listTaskComments',
+    routeSnippets: ['/api/v1/tasks/{taskId}/comments'],
+    workflow: 'task comment list'
+  },
+  {
+    helper: 'createTaskComment',
+    routeSnippets: ['/api/v1/tasks/{taskId}/comments'],
+    workflow: 'task comment create'
+  },
+  {
+    helper: 'deleteTaskComment',
+    routeSnippets: ['/api/v1/tasks/{taskId}/comments/{commentId}'],
+    workflow: 'task comment delete'
+  },
+  {
+    helper: 'listTaskChecklists',
+    routeSnippets: ['/api/v1/tasks/{taskId}/checklists'],
+    workflow: 'task checklist list'
+  },
+  {
+    helper: 'createTaskChecklist',
+    routeSnippets: ['/api/v1/tasks/{taskId}/checklists'],
+    workflow: 'task checklist create'
+  },
+  {
+    helper: 'deleteTaskChecklist',
+    routeSnippets: ['/api/v1/tasks/{taskId}/checklists/{checklistId}'],
+    workflow: 'task checklist delete'
+  },
+  {
+    helper: 'createTaskChecklistItem',
+    routeSnippets: ['/api/v1/tasks/{taskId}/checklists/{checklistId}/items'],
+    workflow: 'task checklist item create'
+  },
+  {
+    helper: 'updateTaskChecklistItem',
+    routeSnippets: ['/api/v1/tasks/{taskId}/checklists/{checklistId}/items/{itemId}'],
+    workflow: 'task checklist item update'
+  },
+  {
+    helper: 'deleteTaskChecklistItem',
+    routeSnippets: ['/api/v1/tasks/{taskId}/checklists/{checklistId}/items/{itemId}'],
+    workflow: 'task checklist item delete'
+  },
+  {
+    helper: 'listTaskActivities',
+    routeSnippets: ['/api/v1/tasks/{taskId}/activities'],
+    workflow: 'task activity list'
+  },
+  {
+    helper: 'listTaskAttachments',
+    routeSnippets: ['/api/v1/tasks/{taskId}/attachments'],
+    workflow: 'task attachment list'
+  },
+  {
+    helper: 'createTaskAttachment',
+    routeSnippets: ['/api/v1/tasks/{taskId}/attachments'],
+    workflow: 'task attachment create'
+  },
+  {
+    helper: 'deleteTaskAttachment',
+    routeSnippets: ['/api/v1/tasks/{taskId}/attachments/{attachmentId}'],
+    workflow: 'task attachment delete'
+  },
+  {
+    helper: 'listTaskDependencies',
+    routeSnippets: ['/api/v1/tasks/{taskId}/dependencies'],
+    workflow: 'task dependency list'
+  },
+  {
+    helper: 'createTaskDependency',
+    routeSnippets: ['/api/v1/tasks/{taskId}/dependencies'],
+    workflow: 'task dependency create'
+  },
+  {
+    helper: 'deleteTaskDependency',
+    routeSnippets: ['/api/v1/tasks/{taskId}/dependencies/{dependencyId}'],
+    workflow: 'task dependency delete'
+  },
+  {
+    helper: 'getTaskTaxonomy',
+    routeSnippets: ['/api/v1/tasks/taxonomy'],
+    workflow: 'task taxonomy load'
+  },
+  {
+    helper: 'listCustomFields',
+    routeSnippets: ['/api/v1/tasks/custom-fields'],
+    workflow: 'custom field list'
+  },
+  {
+    helper: 'createCustomField',
+    routeSnippets: ['/api/v1/tasks/custom-fields'],
+    workflow: 'custom field create'
+  },
+  {
+    helper: 'updateCustomField',
+    routeSnippets: ['/api/v1/tasks/custom-fields/{customFieldId}'],
+    workflow: 'custom field update'
+  },
+  {
+    helper: 'archiveCustomField',
+    routeSnippets: ['/api/v1/tasks/custom-fields/{customFieldId}/archive'],
+    workflow: 'custom field archive'
+  },
+  {
+    helper: 'restoreCustomField',
+    routeSnippets: ['/api/v1/tasks/custom-fields/{customFieldId}/restore'],
+    workflow: 'custom field restore'
+  },
+  {
+    helper: 'deleteCustomField',
+    routeSnippets: ['/api/v1/tasks/custom-fields/{customFieldId}'],
+    workflow: 'custom field delete'
+  },
+  {
+    helper: 'listTaskSavedViews',
+    routeSnippets: ['/api/v1/tasks/saved-views'],
+    workflow: 'task saved view list'
+  },
+  {
+    helper: 'createTaskSavedView',
+    routeSnippets: ['/api/v1/tasks/saved-views'],
+    workflow: 'task saved view create'
+  },
+  {
+    helper: 'updateTaskSavedView',
+    routeSnippets: ['/api/v1/tasks/saved-views/{viewId}'],
+    workflow: 'task saved view update'
+  },
+  {
+    helper: 'deleteTaskSavedView',
+    routeSnippets: ['/api/v1/tasks/saved-views/{viewId}'],
+    workflow: 'task saved view delete'
+  },
+  {
+    helper: 'bulkTaskOperation',
+    routeSnippets: ['/api/v1/tasks/bulk'],
+    workflow: 'bulk task operation'
+  },
+  {
+    helper: 'listLabels',
+    routeSnippets: ['/api/v1/tasks/labels'],
+    workflow: 'task label list'
+  },
+  {
+    helper: 'createLabel',
+    routeSnippets: ['/api/v1/tasks/labels'],
+    workflow: 'task label create'
+  },
+  {
+    helper: 'updateLabel',
+    routeSnippets: ['/api/v1/tasks/labels/{labelId}'],
+    workflow: 'task label update'
+  },
+  {
+    helper: 'deleteLabel',
+    routeSnippets: ['/api/v1/tasks/labels/{labelId}'],
+    workflow: 'task label delete'
+  },
+  {
+    helper: 'listTaskLabels',
+    routeSnippets: ['/api/v1/tasks/{taskId}/labels'],
+    workflow: 'task label assignment list'
+  },
+  {
+    helper: 'assignTaskLabel',
+    routeSnippets: ['/api/v1/tasks/{taskId}/labels'],
+    workflow: 'task label assignment add'
+  },
+  {
+    helper: 'removeTaskLabel',
+    routeSnippets: ['/api/v1/tasks/{taskId}/labels/{labelId}'],
+    workflow: 'task label assignment remove'
+  },
+  {
+    helper: 'listTaskAssignees',
+    routeSnippets: ['/api/v1/tasks/{taskId}/assignees'],
+    workflow: 'task assignee list'
+  },
+  {
+    helper: 'addTaskAssignee',
+    routeSnippets: ['/api/v1/tasks/{taskId}/assignees'],
+    workflow: 'task assignee add'
+  },
+  {
+    helper: 'removeTaskAssignee',
+    routeSnippets: ['/api/v1/tasks/{taskId}/assignees/{userId}'],
+    workflow: 'task assignee remove'
+  },
+  {
+    helper: 'listTaskWatchers',
+    routeSnippets: ['/api/v1/tasks/{taskId}/watchers'],
+    workflow: 'task watcher list'
+  },
+  {
+    helper: 'addTaskWatcher',
+    routeSnippets: ['/api/v1/tasks/{taskId}/watchers'],
+    workflow: 'task watcher add'
+  },
+  {
+    helper: 'removeTaskWatcher',
+    routeSnippets: ['/api/v1/tasks/{taskId}/watchers/{userId}'],
+    workflow: 'task watcher remove'
+  },
+  {
+    helper: 'listSprints',
+    routeSnippets: ['/api/v1/agile/sprints'],
+    workflow: 'sprint list'
+  },
+  {
+    helper: 'createSprint',
+    routeSnippets: ['/api/v1/agile/sprints'],
+    workflow: 'sprint create'
+  },
+  {
+    helper: 'updateSprint',
+    routeSnippets: ['/api/v1/agile/sprints/{sprintId}'],
+    workflow: 'sprint update'
+  },
+  {
+    helper: 'startSprint',
+    routeSnippets: ['/api/v1/agile/sprints/{sprintId}/start'],
+    workflow: 'sprint start'
+  },
+  {
+    helper: 'completeSprint',
+    routeSnippets: ['/api/v1/agile/sprints/{sprintId}/complete'],
+    workflow: 'sprint complete'
+  },
+  {
+    helper: 'deleteSprint',
+    routeSnippets: ['/api/v1/agile/sprints/{sprintId}'],
+    workflow: 'sprint delete'
+  },
+  {
+    helper: 'addSprintTasks',
+    routeSnippets: ['/api/v1/agile/sprints/{sprintId}/tasks'],
+    workflow: 'sprint task add'
+  },
+  {
+    helper: 'removeSprintTask',
+    routeSnippets: ['/api/v1/agile/sprints/{sprintId}/tasks/{taskId}'],
+    workflow: 'sprint task remove'
   },
   {
     helper: 'getProjectBoard',

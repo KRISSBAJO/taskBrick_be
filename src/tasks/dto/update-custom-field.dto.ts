@@ -27,12 +27,12 @@ export class UpdateCustomFieldDto {
   @IsEnum(CustomFieldType)
   type?: CustomFieldType;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsString()
   workspaceId?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsString()
   projectId?: string | null;
@@ -42,7 +42,7 @@ export class UpdateCustomFieldDto {
   @IsBoolean()
   required?: boolean;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
   @IsOptional()
   @IsObject()
   config?: Record<string, unknown>;
