@@ -44,36 +44,42 @@ export class UpdateMeetingIntegrationSettingsDto {
   @IsEnum(MeetingReminderChannel, { each: true })
   defaultReminderChannels?: MeetingReminderChannel[];
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   calendarSyncEnabled?: boolean;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   emailRemindersEnabled?: boolean;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   whatsappRemindersEnabled?: boolean;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   smsRemindersEnabled?: boolean;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   webhookEventsEnabled?: boolean;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   requireApprovedWhatsappTemplates?: boolean;
 
-  @ApiPropertyOptional({ type: Object })
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true, nullable: true })
   @IsOptional()
   @IsObject()
   manualLinkPolicy?: Record<string, unknown> | null;
 
-  @ApiPropertyOptional({ type: Object })
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true, nullable: true })
   @IsOptional()
   @IsObject()
   providerConfig?: Record<string, unknown> | null;
@@ -85,52 +91,63 @@ export class CreateMeetingConferenceDto {
   @IsEnum(MeetingConferenceProvider)
   provider?: MeetingConferenceProvider;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsUrl({ require_tld: false })
   @MaxLength(2000)
   meetingUrl?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MaxLength(220)
   locationName?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   @MaxLength(180)
   calendarId?: string;
 
+  @ApiPropertyOptional({ enum: ['all', 'externalOnly', 'none'] })
   @IsOptional()
   @IsString()
   @MaxLength(40)
   sendUpdates?: 'all' | 'externalOnly' | 'none';
 
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true })
   @IsOptional()
   @IsObject()
   metadata?: Record<string, unknown>;
 }
 
 export class MeetingReminderJobQueryDto extends PaginationQueryDto {
+  @ApiPropertyOptional({ enum: MeetingReminderJobStatus })
   @IsOptional()
   @IsEnum(MeetingReminderJobStatus)
   status?: MeetingReminderJobStatus;
 
+  @ApiPropertyOptional({ enum: MeetingReminderChannel })
   @IsOptional()
   @IsEnum(MeetingReminderChannel)
   channel?: MeetingReminderChannel;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsString()
   meetingId?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()
   from?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsDateString()
   to?: string;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @Transform(({ value }) => toBoolean(value))
   @IsBoolean()
@@ -138,6 +155,7 @@ export class MeetingReminderJobQueryDto extends PaginationQueryDto {
 }
 
 export class ProcessMeetingReminderJobsDto {
+  @ApiPropertyOptional({ minimum: 1, maximum: 100 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()

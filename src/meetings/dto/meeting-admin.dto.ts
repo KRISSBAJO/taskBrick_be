@@ -76,22 +76,26 @@ export class MeetingAdminLogQueryDto extends PaginationQueryDto {
 }
 
 export class UpdateMeetingPolicyDto {
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   publicBookingEnabled?: boolean;
 
+  @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(20)
   @IsString({ each: true })
   publicBookingCreatorPermissions?: string[];
 
+  @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(20)
   @IsString({ each: true })
   calendarConnectionPermissions?: string[];
 
+  @ApiPropertyOptional({ type: [String] })
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(20)
@@ -103,14 +107,17 @@ export class UpdateMeetingPolicyDto {
   @IsEnum(Visibility)
   defaultMeetingVisibility?: Visibility;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   allowExternalGuests?: boolean;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   requireApprovalForExternalGuests?: boolean;
 
+  @ApiPropertyOptional({ minimum: 1, maximum: 365 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -118,6 +125,7 @@ export class UpdateMeetingPolicyDto {
   @Max(365)
   maxAdvanceBookingDays?: number;
 
+  @ApiPropertyOptional({ minimum: 0, maximum: 10080 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -125,6 +133,7 @@ export class UpdateMeetingPolicyDto {
   @Max(10080)
   minBookingNoticeMins?: number;
 
+  @ApiPropertyOptional({ minimum: 15, maximum: 1440 })
   @IsOptional()
   @Type(() => Number)
   @IsInt()
@@ -132,11 +141,12 @@ export class UpdateMeetingPolicyDto {
   @Max(1440)
   maxMeetingDurationMins?: number;
 
+  @ApiPropertyOptional()
   @IsOptional()
   @IsBoolean()
   aiMeetingProcessingEnabled?: boolean;
 
-  @ApiPropertyOptional({ type: Object })
+  @ApiPropertyOptional({ type: 'object', additionalProperties: true, nullable: true })
   @IsOptional()
   @IsObject()
   policyConfig?: Record<string, unknown> | null;

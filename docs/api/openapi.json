@@ -15115,6 +15115,58 @@
             }
           },
           {
+            "name": "scope",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "TENANT",
+                "TEAM",
+                "USER"
+              ]
+            }
+          },
+          {
+            "name": "routingStrategy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DIRECT_HOST",
+                "ROUND_ROBIN",
+                "LEAST_BUSY",
+                "PRIORITY",
+                "DEPARTMENT"
+              ]
+            }
+          },
+          {
+            "name": "meetingTypeId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "teamId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ownerId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "isActive",
             "required": false,
             "in": "query",
@@ -15379,6 +15431,58 @@
             }
           },
           {
+            "name": "scope",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "TENANT",
+                "TEAM",
+                "USER"
+              ]
+            }
+          },
+          {
+            "name": "routingStrategy",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "DIRECT_HOST",
+                "ROUND_ROBIN",
+                "LEAST_BUSY",
+                "PRIORITY",
+                "DEPARTMENT"
+              ]
+            }
+          },
+          {
+            "name": "meetingTypeId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "teamId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "ownerId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "isActive",
             "required": false,
             "in": "query",
@@ -15413,6 +15517,14 @@
             "schema": {
               "type": "string"
             }
+          },
+          {
+            "name": "path",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
           }
         ],
         "responses": {
@@ -15434,6 +15546,30 @@
             "name": "tenantSlug",
             "required": true,
             "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "path",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
             "schema": {
               "type": "string"
             }
@@ -15649,6 +15785,69 @@
             "in": "query",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "QUEUED",
+                "PROCESSING",
+                "SENT",
+                "FAILED",
+                "CANCELLED",
+                "DEAD_LETTER"
+              ]
+            }
+          },
+          {
+            "name": "channel",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "IN_APP",
+                "EMAIL",
+                "WHATSAPP",
+                "SMS",
+                "WEBHOOK"
+              ]
+            }
+          },
+          {
+            "name": "meetingId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "dueOnly",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -17604,7 +17803,37 @@
     "/api/v1/meetings/availability": {
       "get": {
         "operationId": "Meetings_listAvailability",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "ownerId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "teamId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "scope",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "USER",
+                "TEAM",
+                "TENANT"
+              ]
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -17773,7 +18002,40 @@
     "/api/v1/meetings/conflicts": {
       "get": {
         "operationId": "Meetings_checkConflicts",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "startAt",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "endAt",
+            "required": true,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hostId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "attendeeIds",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": ""
@@ -17818,6 +18080,86 @@
             "in": "query",
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "projectId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "taskId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "teamId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "hostId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "meetingTypeId",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "SCHEDULED",
+                "LIVE",
+                "COMPLETED",
+                "CANCELLED",
+                "NO_SHOW",
+                "ARCHIVED"
+              ]
+            }
+          },
+          {
+            "name": "from",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "to",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "includeArchived",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "boolean"
             }
           }
         ],
@@ -32070,33 +32412,533 @@
           "folder"
         ]
       },
+      "BookingFormFieldInputDto": {
+        "type": "object",
+        "properties": {
+          "fieldKey": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "TEXT",
+              "LONG_TEXT",
+              "EMAIL",
+              "PHONE",
+              "NUMBER",
+              "DATE",
+              "SINGLE_SELECT",
+              "MULTI_SELECT",
+              "BOOLEAN",
+              "URL"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "placeholder": {
+            "type": "string"
+          },
+          "helpText": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sortOrder": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "fieldKey",
+          "label"
+        ]
+      },
       "CreateBookingPageDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "TENANT",
+              "TEAM",
+              "USER"
+            ]
+          },
+          "routingStrategy": {
+            "type": "string",
+            "enum": [
+              "DIRECT_HOST",
+              "ROUND_ROBIN",
+              "LEAST_BUSY",
+              "PRIORITY",
+              "DEPARTMENT"
+            ]
+          },
+          "meetingTypeId": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "durationMins": {
+            "type": "number",
+            "minimum": 5,
+            "maximum": 1440
+          },
+          "bufferBeforeMins": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 240
+          },
+          "bufferAfterMins": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 240
+          },
+          "minNoticeMins": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10080
+          },
+          "rollingWindowDays": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 365
+          },
+          "dailyLimit": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "weeklyLimit": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "approvalRequired": {
+            "type": "boolean"
+          },
+          "allowReschedule": {
+            "type": "boolean"
+          },
+          "allowCancel": {
+            "type": "boolean"
+          },
+          "collectCompanyName": {
+            "type": "boolean"
+          },
+          "locationMode": {
+            "type": "string",
+            "enum": [
+              "IN_PERSON",
+              "ONLINE",
+              "HYBRID",
+              "PHONE",
+              "TBD"
+            ]
+          },
+          "locationName": {
+            "type": "string"
+          },
+          "meetingUrl": {
+            "type": "string"
+          },
+          "conferenceProvider": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "brandColor": {
+            "type": "string"
+          },
+          "logoUrl": {
+            "type": "string"
+          },
+          "heroImageUrl": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookingFormFieldInputDto"
+            }
+          }
+        },
+        "required": [
+          "path",
+          "title"
+        ]
       },
       "UpdateBookingPageDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "subtitle": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "TENANT",
+              "TEAM",
+              "USER"
+            ]
+          },
+          "routingStrategy": {
+            "type": "string",
+            "enum": [
+              "DIRECT_HOST",
+              "ROUND_ROBIN",
+              "LEAST_BUSY",
+              "PRIORITY",
+              "DEPARTMENT"
+            ]
+          },
+          "meetingTypeId": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "department": {
+            "type": "string"
+          },
+          "durationMins": {
+            "type": "number",
+            "minimum": 5,
+            "maximum": 1440
+          },
+          "bufferBeforeMins": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 240
+          },
+          "bufferAfterMins": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 240
+          },
+          "minNoticeMins": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10080
+          },
+          "rollingWindowDays": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 365
+          },
+          "dailyLimit": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 200
+          },
+          "weeklyLimit": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 1000
+          },
+          "approvalRequired": {
+            "type": "boolean"
+          },
+          "allowReschedule": {
+            "type": "boolean"
+          },
+          "allowCancel": {
+            "type": "boolean"
+          },
+          "collectCompanyName": {
+            "type": "boolean"
+          },
+          "locationMode": {
+            "type": "string",
+            "enum": [
+              "IN_PERSON",
+              "ONLINE",
+              "HYBRID",
+              "PHONE",
+              "TBD"
+            ]
+          },
+          "locationName": {
+            "type": "string"
+          },
+          "meetingUrl": {
+            "type": "string"
+          },
+          "conferenceProvider": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "brandColor": {
+            "type": "string"
+          },
+          "logoUrl": {
+            "type": "string"
+          },
+          "heroImageUrl": {
+            "type": "string"
+          },
+          "isActive": {
+            "type": "boolean"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          },
+          "fields": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BookingFormFieldInputDto"
+            }
+          }
+        }
       },
       "CreateBookingFormFieldDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "fieldKey": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "TEXT",
+              "LONG_TEXT",
+              "EMAIL",
+              "PHONE",
+              "NUMBER",
+              "DATE",
+              "SINGLE_SELECT",
+              "MULTI_SELECT",
+              "BOOLEAN",
+              "URL"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "placeholder": {
+            "type": "string"
+          },
+          "helpText": {
+            "type": "string"
+          },
+          "options": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sortOrder": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "fieldKey",
+          "label"
+        ]
       },
       "UpdateBookingFormFieldDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "fieldKey": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "TEXT",
+              "LONG_TEXT",
+              "EMAIL",
+              "PHONE",
+              "NUMBER",
+              "DATE",
+              "SINGLE_SELECT",
+              "MULTI_SELECT",
+              "BOOLEAN",
+              "URL"
+            ]
+          },
+          "required": {
+            "type": "boolean"
+          },
+          "placeholder": {
+            "type": "string",
+            "nullable": true
+          },
+          "helpText": {
+            "type": "string",
+            "nullable": true
+          },
+          "options": {
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "sortOrder": {
+            "type": "number",
+            "minimum": 0
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
+      },
+      "PublicBookingIntakeResponseDto": {
+        "type": "object",
+        "properties": {
+          "fieldKey": {
+            "type": "string"
+          },
+          "value": {
+            "oneOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "array",
+                "items": {}
+              },
+              {
+                "type": "object",
+                "additionalProperties": true
+              }
+            ],
+            "nullable": true
+          }
+        },
+        "required": [
+          "fieldKey"
+        ]
       },
       "CreatePublicBookingDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "path": {
+            "type": "string"
+          },
+          "startAt": {
+            "type": "string"
+          },
+          "hostId": {
+            "type": "string"
+          },
+          "guestName": {
+            "type": "string"
+          },
+          "guestEmail": {
+            "type": "string"
+          },
+          "guestPhone": {
+            "type": "string"
+          },
+          "guestCompany": {
+            "type": "string"
+          },
+          "guestTimezone": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "intakeResponses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PublicBookingIntakeResponseDto"
+            }
+          }
+        },
+        "required": [
+          "path",
+          "startAt",
+          "guestName",
+          "guestEmail"
+        ]
       },
       "CancelPublicBookingDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        }
       },
       "ReschedulePublicBookingDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "startAt": {
+            "type": "string"
+          },
+          "hostId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "startAt"
+        ]
       },
       "UpdateMeetingIntegrationSettingsDto": {
         "type": "object",
@@ -32141,17 +32983,45 @@
               ]
             }
           },
+          "calendarSyncEnabled": {
+            "type": "boolean"
+          },
+          "emailRemindersEnabled": {
+            "type": "boolean"
+          },
+          "whatsappRemindersEnabled": {
+            "type": "boolean"
+          },
+          "smsRemindersEnabled": {
+            "type": "boolean"
+          },
+          "webhookEventsEnabled": {
+            "type": "boolean"
+          },
+          "requireApprovedWhatsappTemplates": {
+            "type": "boolean"
+          },
           "manualLinkPolicy": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
           },
           "providerConfig": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
           }
         }
       },
       "ProcessMeetingReminderJobsDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "limit": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100
+          }
+        }
       },
       "CreateMeetingConferenceDto": {
         "type": "object",
@@ -32167,12 +33037,54 @@
               "ZOOM",
               "CUSTOM_URL"
             ]
+          },
+          "meetingUrl": {
+            "type": "string"
+          },
+          "locationName": {
+            "type": "string"
+          },
+          "calendarId": {
+            "type": "string"
+          },
+          "sendUpdates": {
+            "type": "string",
+            "enum": [
+              "all",
+              "externalOnly",
+              "none"
+            ]
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
           }
         }
       },
       "UpdateMeetingPolicyDto": {
         "type": "object",
         "properties": {
+          "publicBookingEnabled": {
+            "type": "boolean"
+          },
+          "publicBookingCreatorPermissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "calendarConnectionPermissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "whatsappConnectionPermissions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
           "defaultMeetingVisibility": {
             "type": "string",
             "enum": [
@@ -32183,8 +33095,34 @@
               "PUBLIC"
             ]
           },
+          "allowExternalGuests": {
+            "type": "boolean"
+          },
+          "requireApprovalForExternalGuests": {
+            "type": "boolean"
+          },
+          "maxAdvanceBookingDays": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 365
+          },
+          "minBookingNoticeMins": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 10080
+          },
+          "maxMeetingDurationMins": {
+            "type": "number",
+            "minimum": 15,
+            "maximum": 1440
+          },
+          "aiMeetingProcessingEnabled": {
+            "type": "boolean"
+          },
           "policyConfig": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true,
+            "nullable": true
           }
         }
       },
@@ -32192,25 +33130,32 @@
         "type": "object",
         "properties": {
           "projectId": {
-            "type": "object"
+            "type": "string",
+            "nullable": true
           },
           "sprintId": {
-            "type": "object"
+            "type": "string",
+            "nullable": true
           },
           "taskId": {
-            "type": "object"
+            "type": "string",
+            "nullable": true
           },
           "teamId": {
-            "type": "object"
+            "type": "string",
+            "nullable": true
           },
           "clientName": {
-            "type": "object"
+            "type": "string",
+            "nullable": true
           },
           "clientEmail": {
-            "type": "object"
+            "type": "string",
+            "nullable": true
           },
           "clientCompany": {
-            "type": "object"
+            "type": "string",
+            "nullable": true
           }
         }
       },
@@ -32233,7 +33178,8 @@
             }
           },
           "metadata": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           }
         }
       },
@@ -32256,7 +33202,8 @@
             }
           },
           "metadata": {
-            "type": "object"
+            "type": "object",
+            "additionalProperties": true
           },
           "role": {
             "type": "string",
@@ -32340,107 +33287,1067 @@
       "UpdateLiveMeetingNotesDto": {
         "type": "object",
         "properties": {
+          "notes": {
+            "type": "string"
+          },
           "version": {
             "type": "number",
             "description": "Optional optimistic concurrency version from the last live notes payload."
+          },
+          "cursor": {
+            "type": "object",
+            "additionalProperties": true
           }
-        }
+        },
+        "required": [
+          "notes"
+        ]
       },
       "CreateMeetingCommentDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "body": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "body"
+        ]
       },
       "UpdateMeetingCommentDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "body": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "body"
+        ]
       },
       "CreateMeetingDecisionDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string"
+          },
+          "impact": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "APPROVED",
+              "REJECTED",
+              "DEFERRED",
+              "SUPERSEDED"
+            ]
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "taskId": {
+            "type": "string"
+          },
+          "dueAt": {
+            "type": "string"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "title"
+        ]
       },
       "UpdateMeetingDecisionDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "summary": {
+            "type": "string",
+            "nullable": true
+          },
+          "impact": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "APPROVED",
+              "REJECTED",
+              "DEFERRED",
+              "SUPERSEDED"
+            ]
+          },
+          "ownerId": {
+            "type": "string",
+            "nullable": true
+          },
+          "taskId": {
+            "type": "string",
+            "nullable": true
+          },
+          "dueAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
       },
       "CreateMeetingChecklistItemDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "ownerId": {
+            "type": "string"
+          },
+          "taskId": {
+            "type": "string"
+          },
+          "dueAt": {
+            "type": "string"
+          },
+          "sortOrder": {
+            "type": "number",
+            "minimum": 0
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "title"
+        ]
       },
       "UpdateMeetingChecklistItemDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "isDone": {
+            "type": "boolean"
+          },
+          "ownerId": {
+            "type": "string",
+            "nullable": true
+          },
+          "taskId": {
+            "type": "string",
+            "nullable": true
+          },
+          "dueAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "sortOrder": {
+            "type": "number",
+            "minimum": 0
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
       },
       "UpdateMeetingAttendanceDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "INVITED",
+              "ACCEPTED",
+              "DECLINED",
+              "TENTATIVE",
+              "ATTENDED",
+              "NO_SHOW",
+              "REMOVED"
+            ]
+          },
+          "responseNote": {
+            "type": "string",
+            "nullable": true
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "status"
+        ]
       },
       "AssignMeetingActionItemDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "sprintId": {
+            "type": "string"
+          },
+          "assigneeId": {
+            "type": "string"
+          },
+          "dueDate": {
+            "type": "string"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "URGENT",
+              "CRITICAL"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "TASK",
+              "BUG",
+              "STORY",
+              "EPIC",
+              "FEATURE",
+              "INCIDENT",
+              "APPROVAL",
+              "CHANGE_REQUEST",
+              "MILESTONE"
+            ]
+          },
+          "actionItemId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "title"
+        ]
       },
       "SendMeetingFollowUpDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "subject": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          },
+          "channels": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "enum": [
+                "IN_APP",
+                "EMAIL",
+                "WHATSAPP",
+                "SMS",
+                "WEBHOOK"
+              ]
+            }
+          },
+          "recipients": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "includeActionItems": {
+            "type": "boolean"
+          },
+          "syncToOmoFlow": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "body"
+        ]
       },
       "SyncMeetingRuntimeDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "provider": {
+            "type": "string"
+          },
+          "payload": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
       },
       "CreateMeetingTypeDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "INTERNAL",
+              "CLIENT",
+              "SALES",
+              "SUPPORT",
+              "SPRINT",
+              "STANDUP",
+              "REVIEW",
+              "INTERVIEW",
+              "TRAINING",
+              "CUSTOM"
+            ]
+          },
+          "color": {
+            "type": "string"
+          },
+          "icon": {
+            "type": "string"
+          },
+          "durationMins": {
+            "type": "number",
+            "minimum": 5,
+            "maximum": 1440
+          },
+          "bufferBeforeMins": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 240
+          },
+          "bufferAfterMins": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 240
+          },
+          "locationMode": {
+            "type": "string",
+            "enum": [
+              "IN_PERSON",
+              "ONLINE",
+              "HYBRID",
+              "PHONE",
+              "TBD"
+            ]
+          },
+          "defaultVisibility": {
+            "type": "string",
+            "enum": [
+              "PRIVATE",
+              "TEAM",
+              "WORKSPACE",
+              "ORGANIZATION",
+              "PUBLIC"
+            ]
+          },
+          "requiresApproval": {
+            "type": "boolean"
+          },
+          "defaultReminderMins": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "defaultAgenda": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "name"
+        ]
       },
       "UpdateMeetingTypeDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "slug": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "category": {
+            "type": "string",
+            "enum": [
+              "INTERNAL",
+              "CLIENT",
+              "SALES",
+              "SUPPORT",
+              "SPRINT",
+              "STANDUP",
+              "REVIEW",
+              "INTERVIEW",
+              "TRAINING",
+              "CUSTOM"
+            ]
+          },
+          "color": {
+            "type": "string",
+            "nullable": true
+          },
+          "icon": {
+            "type": "string",
+            "nullable": true
+          },
+          "durationMins": {
+            "type": "number",
+            "minimum": 5,
+            "maximum": 1440
+          },
+          "bufferBeforeMins": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 240
+          },
+          "bufferAfterMins": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 240
+          },
+          "locationMode": {
+            "type": "string",
+            "enum": [
+              "IN_PERSON",
+              "ONLINE",
+              "HYBRID",
+              "PHONE",
+              "TBD"
+            ]
+          },
+          "defaultVisibility": {
+            "type": "string",
+            "enum": [
+              "PRIVATE",
+              "TEAM",
+              "WORKSPACE",
+              "ORGANIZATION",
+              "PUBLIC"
+            ]
+          },
+          "requiresApproval": {
+            "type": "boolean"
+          },
+          "defaultReminderMins": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "defaultAgenda": {
+            "nullable": true,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
       },
       "CreateAvailabilityWindowDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "ownerId": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "USER",
+              "TEAM",
+              "TENANT"
+            ]
+          },
+          "label": {
+            "type": "string"
+          },
+          "dayOfWeek": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 6
+          },
+          "startTime": {
+            "type": "string"
+          },
+          "endTime": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "capacity": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100
+          }
+        },
+        "required": [
+          "dayOfWeek",
+          "startTime",
+          "endTime"
+        ]
       },
       "UpdateAvailabilityWindowDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "ownerId": {
+            "type": "string",
+            "nullable": true
+          },
+          "teamId": {
+            "type": "string",
+            "nullable": true
+          },
+          "scope": {
+            "type": "string",
+            "enum": [
+              "USER",
+              "TEAM",
+              "TENANT"
+            ]
+          },
+          "label": {
+            "type": "string",
+            "nullable": true
+          },
+          "dayOfWeek": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 6
+          },
+          "startTime": {
+            "type": "string"
+          },
+          "endTime": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "capacity": {
+            "type": "number",
+            "minimum": 1,
+            "maximum": 100
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        }
       },
       "CreateBlackoutWindowDto": {
         "type": "object",
         "properties": {}
       },
+      "ExternalAttendeeDto": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "HOST",
+              "CO_HOST",
+              "REQUIRED",
+              "OPTIONAL",
+              "GUEST",
+              "OBSERVER"
+            ]
+          }
+        },
+        "required": [
+          "email"
+        ]
+      },
+      "MeetingAgendaInputDto": {
+        "type": "object",
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "durationMins": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1440
+          },
+          "sortOrder": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "title"
+        ]
+      },
       "CreateMeetingDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "meetingTypeId": {
+            "type": "string"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "sprintId": {
+            "type": "string"
+          },
+          "taskId": {
+            "type": "string"
+          },
+          "teamId": {
+            "type": "string"
+          },
+          "hostId": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "startAt": {
+            "type": "string"
+          },
+          "endAt": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "locationMode": {
+            "type": "string",
+            "enum": [
+              "IN_PERSON",
+              "ONLINE",
+              "HYBRID",
+              "PHONE",
+              "TBD"
+            ]
+          },
+          "locationName": {
+            "type": "string"
+          },
+          "meetingUrl": {
+            "type": "string"
+          },
+          "conferenceProvider": {
+            "type": "string"
+          },
+          "clientName": {
+            "type": "string"
+          },
+          "clientEmail": {
+            "type": "string"
+          },
+          "clientCompany": {
+            "type": "string"
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "PRIVATE",
+              "TEAM",
+              "WORKSPACE",
+              "ORGANIZATION",
+              "PUBLIC"
+            ]
+          },
+          "recurrenceRule": {
+            "type": "string"
+          },
+          "attendeeIds": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "externalAttendees": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ExternalAttendeeDto"
+            }
+          },
+          "agendaItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MeetingAgendaInputDto"
+            }
+          },
+          "reminderOffsets": {
+            "type": "array",
+            "items": {
+              "type": "number"
+            }
+          },
+          "allowConflicts": {
+            "type": "boolean"
+          },
+          "aiEnabled": {
+            "type": "boolean"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        },
+        "required": [
+          "title",
+          "startAt",
+          "endAt"
+        ]
       },
       "UpdateMeetingDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "meetingTypeId": {
+            "type": "string",
+            "nullable": true
+          },
+          "projectId": {
+            "type": "string",
+            "nullable": true
+          },
+          "sprintId": {
+            "type": "string",
+            "nullable": true
+          },
+          "taskId": {
+            "type": "string",
+            "nullable": true
+          },
+          "teamId": {
+            "type": "string",
+            "nullable": true
+          },
+          "hostId": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string",
+            "nullable": true
+          },
+          "startAt": {
+            "type": "string"
+          },
+          "endAt": {
+            "type": "string"
+          },
+          "timezone": {
+            "type": "string"
+          },
+          "locationMode": {
+            "type": "string",
+            "enum": [
+              "IN_PERSON",
+              "ONLINE",
+              "HYBRID",
+              "PHONE",
+              "TBD"
+            ]
+          },
+          "locationName": {
+            "type": "string",
+            "nullable": true
+          },
+          "meetingUrl": {
+            "type": "string",
+            "nullable": true
+          },
+          "conferenceProvider": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientName": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientEmail": {
+            "type": "string",
+            "nullable": true
+          },
+          "clientCompany": {
+            "type": "string",
+            "nullable": true
+          },
+          "visibility": {
+            "type": "string",
+            "enum": [
+              "PRIVATE",
+              "TEAM",
+              "WORKSPACE",
+              "ORGANIZATION",
+              "PUBLIC"
+            ]
+          },
+          "recurrenceRule": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "SCHEDULED",
+              "LIVE",
+              "COMPLETED",
+              "CANCELLED",
+              "NO_SHOW",
+              "ARCHIVED"
+            ]
+          },
+          "approvalStatus": {
+            "type": "string",
+            "enum": [
+              "NOT_REQUIRED",
+              "PENDING",
+              "APPROVED",
+              "REJECTED"
+            ]
+          },
+          "allowConflicts": {
+            "type": "boolean"
+          },
+          "aiEnabled": {
+            "type": "boolean"
+          },
+          "metadata": {
+            "type": "object",
+            "additionalProperties": true
+          }
+        }
       },
       "CancelMeetingDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "reason": {
+            "type": "string"
+          }
+        }
       },
       "AddMeetingAttendeeDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "userId": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          },
+          "role": {
+            "type": "string",
+            "enum": [
+              "HOST",
+              "CO_HOST",
+              "REQUIRED",
+              "OPTIONAL",
+              "GUEST",
+              "OBSERVER"
+            ]
+          }
+        }
       },
       "UpdateMeetingAttendeeDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "HOST",
+              "CO_HOST",
+              "REQUIRED",
+              "OPTIONAL",
+              "GUEST",
+              "OBSERVER"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "INVITED",
+              "ACCEPTED",
+              "DECLINED",
+              "TENTATIVE",
+              "ATTENDED",
+              "NO_SHOW",
+              "REMOVED"
+            ]
+          },
+          "responseNote": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "CreateAgendaItemDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string"
+          },
+          "durationMins": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 1440
+          },
+          "sortOrder": {
+            "type": "number",
+            "minimum": 0
+          }
+        },
+        "required": [
+          "title"
+        ]
       },
       "UpdateAgendaItemDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "title": {
+            "type": "string"
+          },
+          "notes": {
+            "type": "string",
+            "nullable": true
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "OPEN",
+              "IN_PROGRESS",
+              "DONE",
+              "SKIPPED"
+            ]
+          },
+          "durationMins": {
+            "type": "number",
+            "nullable": true,
+            "minimum": 0,
+            "maximum": 1440
+          },
+          "sortOrder": {
+            "type": "number",
+            "minimum": 0
+          }
+        }
       },
       "CreateMeetingReminderDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "channel": {
+            "type": "string",
+            "enum": [
+              "IN_APP",
+              "EMAIL",
+              "WHATSAPP",
+              "SMS",
+              "WEBHOOK"
+            ]
+          },
+          "attendeeId": {
+            "type": "string"
+          },
+          "offsetMinutes": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 525600
+          },
+          "destination": {
+            "type": "string"
+          },
+          "templateKey": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel",
+          "offsetMinutes"
+        ]
       },
       "UpdateMeetingReminderDto": {
         "type": "object",
-        "properties": {}
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "PENDING",
+              "SCHEDULED",
+              "SENT",
+              "FAILED",
+              "CANCELLED"
+            ]
+          },
+          "error": {
+            "type": "string",
+            "nullable": true
+          }
+        }
       },
       "CreateNotificationDto": {
         "type": "object",
