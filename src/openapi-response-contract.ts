@@ -20254,7 +20254,38 @@ export const openApiOperationResponseSchemas: Record<string, Partial<Record<Open
     }
   },
   "/api/v1/meetings/{meetingId}/live-notes": {
-    "patch": {}
+    "patch": {
+      "type": "object",
+      "properties": {
+        "notes": {
+          "type": "string"
+        },
+        "version": {
+          "type": "number"
+        },
+        "updatedAt": {
+          "type": "string",
+          "nullable": true
+        },
+        "updatedBy": {
+          "allOf": [
+            {
+              "$ref": "#/components/schemas/UserSummary"
+            }
+          ],
+          "nullable": true
+        },
+        "runtimeState": {
+          "type": "object",
+          "additionalProperties": true
+        }
+      },
+      "required": [
+        "notes",
+        "version",
+        "runtimeState"
+      ]
+    }
   },
   "/api/v1/meetings/{meetingId}/no-show": {
     "post": {
@@ -22673,31 +22704,1099 @@ export const openApiOperationResponseSchemas: Record<string, Partial<Record<Open
     }
   },
   "/api/v1/site-admin/tenants/{tenantId}/activity": {
-    "get": {}
+    "get": {
+      "type": "object",
+      "properties": {
+        "tenant": {
+          "$ref": "#/components/schemas/Tenant"
+        },
+        "section": {
+          "type": "string",
+          "enum": [
+            "activity"
+          ]
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "tenantAuditLogs": {
+              "type": "number"
+            },
+            "platformAuditLogs": {
+              "type": "number"
+            },
+            "securityEvents": {
+              "type": "number"
+            },
+            "byAction": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/AuditLog"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "tenantAudit"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/PlatformAuditLog"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "platformAudit"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SecurityEvent"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "securityEvent"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "meta": {
+          "type": "object",
+          "properties": {
+            "page": {
+              "type": "number"
+            },
+            "limit": {
+              "type": "number"
+            },
+            "total": {
+              "type": "number"
+            },
+            "totalPages": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "page",
+            "limit",
+            "total",
+            "totalPages"
+          ]
+        }
+      },
+      "required": [
+        "tenant",
+        "section",
+        "summary",
+        "data",
+        "meta"
+      ]
+    }
   },
   "/api/v1/site-admin/tenants/{tenantId}/ai": {
-    "get": {}
+    "get": {
+      "type": "object",
+      "properties": {
+        "tenant": {
+          "$ref": "#/components/schemas/Tenant"
+        },
+        "section": {
+          "type": "string",
+          "enum": [
+            "ai"
+          ]
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "enabled": {
+              "type": "boolean"
+            },
+            "agents": {
+              "type": "number"
+            },
+            "usageLogs": {
+              "type": "number"
+            },
+            "inputTokens": {
+              "type": "number"
+            },
+            "outputTokens": {
+              "type": "number"
+            },
+            "totalTokens": {
+              "type": "number"
+            },
+            "estimatedCost": {
+              "type": "number"
+            },
+            "byUsageStatus": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "byActionStatus": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "byConversationStatus": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SiteAiSettings"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "settings"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SiteAiAgent"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "agent"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SiteAiUsageLog"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "usage"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "meta": {
+          "type": "object",
+          "properties": {
+            "page": {
+              "type": "number"
+            },
+            "limit": {
+              "type": "number"
+            },
+            "total": {
+              "type": "number"
+            },
+            "totalPages": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "page",
+            "limit",
+            "total",
+            "totalPages"
+          ]
+        }
+      },
+      "required": [
+        "tenant",
+        "section",
+        "summary",
+        "data",
+        "meta"
+      ]
+    }
   },
   "/api/v1/site-admin/tenants/{tenantId}/billing": {
-    "get": {}
+    "get": {
+      "type": "object",
+      "properties": {
+        "tenant": {
+          "$ref": "#/components/schemas/Tenant"
+        },
+        "section": {
+          "type": "string",
+          "enum": [
+            "billing"
+          ]
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "subscriptionStatus": {
+              "type": "string"
+            },
+            "plan": {
+              "type": "string",
+              "nullable": true
+            },
+            "seats": {
+              "type": "number"
+            },
+            "invoices": {
+              "type": "number"
+            },
+            "usageRecords": {
+              "type": "number"
+            },
+            "billingEvents": {
+              "type": "number"
+            }
+          }
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SiteSubscription"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "subscription"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SiteInvoice"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "invoice"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SiteUsageRecord"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "usage"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SiteBillingEvent"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "billingEvent"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "meta": {
+          "type": "object",
+          "properties": {
+            "page": {
+              "type": "number"
+            },
+            "limit": {
+              "type": "number"
+            },
+            "total": {
+              "type": "number"
+            },
+            "totalPages": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "page",
+            "limit",
+            "total",
+            "totalPages"
+          ]
+        }
+      },
+      "required": [
+        "tenant",
+        "section",
+        "summary",
+        "data",
+        "meta"
+      ]
+    }
   },
   "/api/v1/site-admin/tenants/{tenantId}/files": {
-    "get": {}
+    "get": {
+      "type": "object",
+      "properties": {
+        "tenant": {
+          "$ref": "#/components/schemas/Tenant"
+        },
+        "section": {
+          "type": "string",
+          "enum": [
+            "files"
+          ]
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "total": {
+              "type": "number"
+            },
+            "active": {
+              "type": "number"
+            },
+            "archived": {
+              "type": "number"
+            },
+            "deleted": {
+              "type": "number"
+            },
+            "bytes": {
+              "type": "number"
+            },
+            "byScope": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "byProvider": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/FileAsset"
+          }
+        },
+        "meta": {
+          "type": "object",
+          "properties": {
+            "page": {
+              "type": "number"
+            },
+            "limit": {
+              "type": "number"
+            },
+            "total": {
+              "type": "number"
+            },
+            "totalPages": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "page",
+            "limit",
+            "total",
+            "totalPages"
+          ]
+        }
+      },
+      "required": [
+        "tenant",
+        "section",
+        "summary",
+        "data",
+        "meta"
+      ]
+    }
   },
   "/api/v1/site-admin/tenants/{tenantId}/integrations": {
-    "get": {}
+    "get": {
+      "type": "object",
+      "properties": {
+        "tenant": {
+          "$ref": "#/components/schemas/Tenant"
+        },
+        "section": {
+          "type": "string",
+          "enum": [
+            "integrations"
+          ]
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "total": {
+              "type": "number"
+            },
+            "webhooks": {
+              "type": "number"
+            },
+            "recentDeliveries": {
+              "type": "number"
+            },
+            "byProvider": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "byStatus": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Integration"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "integration"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/Webhook"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "webhook"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/WebhookDelivery"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "webhookDelivery"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "meta": {
+          "type": "object",
+          "properties": {
+            "page": {
+              "type": "number"
+            },
+            "limit": {
+              "type": "number"
+            },
+            "total": {
+              "type": "number"
+            },
+            "totalPages": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "page",
+            "limit",
+            "total",
+            "totalPages"
+          ]
+        }
+      },
+      "required": [
+        "tenant",
+        "section",
+        "summary",
+        "data",
+        "meta"
+      ]
+    }
   },
   "/api/v1/site-admin/tenants/{tenantId}/projects": {
-    "get": {}
+    "get": {
+      "type": "object",
+      "properties": {
+        "tenant": {
+          "$ref": "#/components/schemas/Tenant"
+        },
+        "section": {
+          "type": "string",
+          "enum": [
+            "projects"
+          ]
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "total": {
+              "type": "number"
+            },
+            "overdue": {
+              "type": "number"
+            },
+            "byStatus": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "byVisibility": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Project"
+          }
+        },
+        "meta": {
+          "type": "object",
+          "properties": {
+            "page": {
+              "type": "number"
+            },
+            "limit": {
+              "type": "number"
+            },
+            "total": {
+              "type": "number"
+            },
+            "totalPages": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "page",
+            "limit",
+            "total",
+            "totalPages"
+          ]
+        }
+      },
+      "required": [
+        "tenant",
+        "section",
+        "summary",
+        "data",
+        "meta"
+      ]
+    }
   },
   "/api/v1/site-admin/tenants/{tenantId}/reports": {
-    "get": {}
+    "get": {
+      "type": "object",
+      "properties": {
+        "tenant": {
+          "$ref": "#/components/schemas/Tenant"
+        },
+        "section": {
+          "type": "string",
+          "enum": [
+            "reports"
+          ]
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "reports": {
+              "type": "number"
+            },
+            "dashboards": {
+              "type": "number"
+            },
+            "executions": {
+              "type": "number"
+            },
+            "exports": {
+              "type": "number"
+            },
+            "byReportStatus": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "byDashboardVisibility": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "oneOf": [
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SiteReport"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "report"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SiteDashboard"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "dashboard"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SiteReportExecution"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "execution"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                ]
+              },
+              {
+                "allOf": [
+                  {
+                    "$ref": "#/components/schemas/SiteReportExport"
+                  },
+                  {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "type": "string",
+                        "enum": [
+                          "export"
+                        ]
+                      }
+                    },
+                    "required": [
+                      "kind"
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        "meta": {
+          "type": "object",
+          "properties": {
+            "page": {
+              "type": "number"
+            },
+            "limit": {
+              "type": "number"
+            },
+            "total": {
+              "type": "number"
+            },
+            "totalPages": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "page",
+            "limit",
+            "total",
+            "totalPages"
+          ]
+        }
+      },
+      "required": [
+        "tenant",
+        "section",
+        "summary",
+        "data",
+        "meta"
+      ]
+    }
   },
   "/api/v1/site-admin/tenants/{tenantId}/security": {
-    "get": {}
+    "get": {
+      "type": "object",
+      "properties": {
+        "tenant": {
+          "$ref": "#/components/schemas/Tenant"
+        },
+        "section": {
+          "type": "string",
+          "enum": [
+            "security"
+          ]
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "total": {
+              "type": "number"
+            },
+            "open": {
+              "type": "number"
+            },
+            "bySeverity": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "byStatus": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "number"
+              }
+            },
+            "apiKeys": {
+              "type": "number"
+            },
+            "ssoProviders": {
+              "type": "number"
+            },
+            "mfaFactors": {
+              "type": "number"
+            },
+            "trustedDevices": {
+              "type": "number"
+            },
+            "mfaRequired": {
+              "type": "boolean"
+            },
+            "ssoRequired": {
+              "type": "boolean"
+            }
+          }
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/SecurityEvent"
+          }
+        },
+        "meta": {
+          "type": "object",
+          "properties": {
+            "page": {
+              "type": "number"
+            },
+            "limit": {
+              "type": "number"
+            },
+            "total": {
+              "type": "number"
+            },
+            "totalPages": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "page",
+            "limit",
+            "total",
+            "totalPages"
+          ]
+        }
+      },
+      "required": [
+        "tenant",
+        "section",
+        "summary",
+        "data",
+        "meta"
+      ]
+    }
   },
   "/api/v1/site-admin/tenants/{tenantId}/sessions": {
-    "get": {}
+    "get": {
+      "type": "object",
+      "properties": {
+        "tenant": {
+          "$ref": "#/components/schemas/Tenant"
+        },
+        "section": {
+          "type": "string",
+          "enum": [
+            "sessions"
+          ]
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "total": {
+              "type": "number"
+            },
+            "active": {
+              "type": "number"
+            },
+            "revoked": {
+              "type": "number"
+            },
+            "expired": {
+              "type": "number"
+            }
+          }
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/AuthSession"
+          }
+        },
+        "meta": {
+          "type": "object",
+          "properties": {
+            "page": {
+              "type": "number"
+            },
+            "limit": {
+              "type": "number"
+            },
+            "total": {
+              "type": "number"
+            },
+            "totalPages": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "page",
+            "limit",
+            "total",
+            "totalPages"
+          ]
+        }
+      },
+      "required": [
+        "tenant",
+        "section",
+        "summary",
+        "data",
+        "meta"
+      ]
+    }
   },
   "/api/v1/site-admin/tenants/{tenantId}/status": {
     "patch": {
@@ -22705,7 +23804,65 @@ export const openApiOperationResponseSchemas: Record<string, Partial<Record<Open
     }
   },
   "/api/v1/site-admin/tenants/{tenantId}/teams": {
-    "get": {}
+    "get": {
+      "type": "object",
+      "properties": {
+        "tenant": {
+          "$ref": "#/components/schemas/Tenant"
+        },
+        "section": {
+          "type": "string",
+          "enum": [
+            "teams"
+          ]
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "total": {
+              "type": "number"
+            }
+          }
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Team"
+          }
+        },
+        "meta": {
+          "type": "object",
+          "properties": {
+            "page": {
+              "type": "number"
+            },
+            "limit": {
+              "type": "number"
+            },
+            "total": {
+              "type": "number"
+            },
+            "totalPages": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "page",
+            "limit",
+            "total",
+            "totalPages"
+          ]
+        }
+      },
+      "required": [
+        "tenant",
+        "section",
+        "summary",
+        "data",
+        "meta"
+      ]
+    }
   },
   "/api/v1/site-admin/tenants/{tenantId}/users": {
     "get": {
@@ -22748,7 +23905,65 @@ export const openApiOperationResponseSchemas: Record<string, Partial<Record<Open
     }
   },
   "/api/v1/site-admin/tenants/{tenantId}/workspaces": {
-    "get": {}
+    "get": {
+      "type": "object",
+      "properties": {
+        "tenant": {
+          "$ref": "#/components/schemas/Tenant"
+        },
+        "section": {
+          "type": "string",
+          "enum": [
+            "workspaces"
+          ]
+        },
+        "summary": {
+          "type": "object",
+          "additionalProperties": true,
+          "properties": {
+            "total": {
+              "type": "number"
+            }
+          }
+        },
+        "data": {
+          "type": "array",
+          "items": {
+            "$ref": "#/components/schemas/Workspace"
+          }
+        },
+        "meta": {
+          "type": "object",
+          "properties": {
+            "page": {
+              "type": "number"
+            },
+            "limit": {
+              "type": "number"
+            },
+            "total": {
+              "type": "number"
+            },
+            "totalPages": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "page",
+            "limit",
+            "total",
+            "totalPages"
+          ]
+        }
+      },
+      "required": [
+        "tenant",
+        "section",
+        "summary",
+        "data",
+        "meta"
+      ]
+    }
   },
   "/api/v1/site-admin/users": {
     "get": {
