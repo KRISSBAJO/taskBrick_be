@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import type { OpenAPIObject } from '@nestjs/swagger';
 
 type HttpMethod = 'get' | 'post' | 'patch' | 'put' | 'delete';
@@ -12,6 +12,12 @@ interface RequiredEndpoint {
   path: string;
   workflow: string;
   auth: 'public' | 'bearer';
+}
+
+interface FrontendClientCheck {
+  helper: string;
+  route: string;
+  workflow: string;
 }
 
 const requiredEndpoints: RequiredEndpoint[] = [
@@ -27,12 +33,26 @@ const requiredEndpoints: RequiredEndpoint[] = [
   { method: 'post', path: '/api/v1/projects', workflow: 'create project flow', auth: 'bearer' },
   { method: 'get', path: '/api/v1/tasks', workflow: 'task list and board hydration', auth: 'bearer' },
   { method: 'post', path: '/api/v1/tasks', workflow: 'create task flow', auth: 'bearer' },
-  { method: 'get', path: '/api/v1/projects/{projectId}/board', workflow: 'kanban board hydration', auth: 'bearer' },
-  { method: 'patch', path: '/api/v1/tasks/{taskId}/status', workflow: 'drag task status update', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/agile/projects/{projectId}/board', workflow: 'kanban board hydration', auth: 'bearer' },
+  { method: 'patch', path: '/api/v1/agile/tasks/{taskId}/order', workflow: 'drag task board order update', auth: 'bearer' },
+  { method: 'patch', path: '/api/v1/agile/tasks/{taskId}/status', workflow: 'drag task status update', auth: 'bearer' },
   { method: 'get', path: '/api/v1/reporting/dashboards', workflow: 'dashboard list', auth: 'bearer' },
   { method: 'get', path: '/api/v1/reporting/analytics/overview', workflow: 'executive metrics', auth: 'bearer' },
   { method: 'get', path: '/api/v1/ai/status', workflow: 'AI availability badge', auth: 'public' },
   { method: 'get', path: '/api/v1/admin/overview', workflow: 'admin console overview', auth: 'bearer' }
+];
+
+const frontendClientChecks: FrontendClientCheck[] = [
+  {
+    helper: 'getProjectBoard',
+    route: '/agile/projects/${projectId}/board',
+    workflow: 'kanban board hydration'
+  },
+  {
+    helper: 'updateTaskBoardOrder',
+    route: '/agile/tasks/${taskId}/order',
+    workflow: 'drag task board order update'
+  }
 ];
 
 function readOpenApiContract(): OpenAPIObject {
@@ -50,6 +70,26 @@ function operationHasBearerAuth(operation: OperationWithSecurity | undefined) {
   return operation.security.some((requirement) => Object.keys(requirement).includes('bearer'));
 }
 
+function readFrontendClient() {
+  const frontendClientPath = resolve(process.cwd(), '..', 'taskbricks-fe', 'src', 'lib', 'api.ts');
+  return readFileSync(frontendClientPath, 'utf8');
+}
+
+function findMissingFrontendClientChecks(frontendClient: string) {
+  return frontendClientChecks.filter((check) => {
+    const helperIndex = frontendClient.indexOf(`function ${check.helper}`);
+    if (helperIndex === -1) return true;
+
+    const nextFunctionIndex = frontendClient.indexOf('\nexport function ', helperIndex + 1);
+    const helperSource =
+      nextFunctionIndex === -1
+        ? frontendClient.slice(helperIndex)
+        : frontendClient.slice(helperIndex, nextFunctionIndex);
+
+    return !helperSource.includes(check.route);
+  });
+}
+
 function main() {
   const document = readOpenApiContract();
   const missing = requiredEndpoints.filter((endpoint) => !getOperation(document, endpoint));
@@ -59,8 +99,9 @@ function main() {
   );
   const unversioned = Object.keys(document.paths).filter((path) => !path.startsWith('/api/v1/'));
   const bearerScheme = document.components?.securitySchemes?.bearer;
+  const missingFrontendClientChecks = findMissingFrontendClientChecks(readFrontendClient());
 
-  if (missing.length || unsecured.length || unversioned.length || !bearerScheme) {
+  if (missing.length || unsecured.length || unversioned.length || !bearerScheme || missingFrontendClientChecks.length) {
     if (missing.length) {
       console.error('Missing frontend contract endpoints:');
       missing.forEach((endpoint) =>
@@ -84,11 +125,19 @@ function main() {
       console.error('Missing bearer security scheme.');
     }
 
+    if (missingFrontendClientChecks.length) {
+      console.error('Frontend client helper route checks failed:');
+      missingFrontendClientChecks.forEach((check) =>
+        console.error(`- ${check.helper} must call ${check.route} (${check.workflow})`)
+      );
+    }
+
     process.exit(1);
   }
 
   console.log(`Frontend contract verified against ${Object.keys(document.paths).length} paths.`);
   console.log(`Required workflows covered: ${requiredEndpoints.length}`);
+  console.log(`Frontend client helpers covered: ${frontendClientChecks.length}`);
 }
 
 main();

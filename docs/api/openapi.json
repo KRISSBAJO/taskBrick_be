@@ -8105,11 +8105,6 @@
             }
           }
         },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
         "summary": "Revoke the current auth session",
         "tags": [
           "auth"
@@ -30336,18 +30331,19 @@
             "type": "string"
           },
           "refreshToken": {
-            "type": "string"
+            "type": "string",
+            "description": "Deprecated for browsers. Refresh tokens are issued in an HttpOnly cookie."
           },
           "user": {
             "$ref": "#/components/schemas/AuthUserDto"
           },
           "trustedDeviceToken": {
-            "type": "string"
+            "type": "string",
+            "description": "Deprecated for browsers. Trusted-device tokens are issued in an HttpOnly cookie."
           }
         },
         "required": [
           "accessToken",
-          "refreshToken",
           "user"
         ]
       },
@@ -30475,12 +30471,9 @@
         "properties": {
           "refreshToken": {
             "type": "string",
-            "description": "Refresh token returned by login or register"
+            "description": "Refresh token for non-browser clients. Browser clients use the HttpOnly refresh cookie."
           }
-        },
-        "required": [
-          "refreshToken"
-        ]
+        }
       },
       "ForgotPasswordDto": {
         "type": "object",
