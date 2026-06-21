@@ -7,7 +7,7 @@ import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { DisableMfaDto, EnableTotpDto, RegenerateBackupCodesDto, SetupTotpDto } from './dto/mfa-management.dto';
-import { SsoStartQueryDto, UpdateTenantLoginPolicyDto, UpsertSsoProviderDto } from './dto/sso-provider.dto';
+import { SsoDiscoveryQueryDto, SsoStartQueryDto, UpdateTenantLoginPolicyDto, UpsertSsoProviderDto } from './dto/sso-provider.dto';
 import { IdentitySecurityService } from './identity-security.service';
 
 @ApiTags('identity-security')
@@ -115,8 +115,8 @@ export class AuthSsoController {
   @Get('discovery')
   @Version('1')
   @ApiOperation({ summary: 'Discover tenant login methods by email domain or tenant slug' })
-  discovery(@Query('email') email?: string, @Query('tenantSlug') tenantSlug?: string) {
-    return this.identitySecurityService.discoverLogin(email, tenantSlug);
+  discovery(@Query() query: SsoDiscoveryQueryDto) {
+    return this.identitySecurityService.discoverLogin(query.email, query.tenantSlug);
   }
 
   @Get('start')

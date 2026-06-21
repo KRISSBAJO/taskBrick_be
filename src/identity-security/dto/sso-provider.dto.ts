@@ -122,6 +122,18 @@ export class SsoStartQueryDto {
   redirectUri?: string;
 }
 
+export class SsoDiscoveryQueryDto {
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  tenantSlug?: string;
+}
+
 export class SsoCallbackDto {
   @ApiProperty()
   @IsString()

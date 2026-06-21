@@ -6,11 +6,11 @@ import {
 import { Prisma, UserStatus } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddTeamMemberDto } from './dto/add-team-member.dto';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { InviteTeamMemberDto } from './dto/invite-team-member.dto';
+import { TeamQueryDto } from './dto/team-query.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
 
 interface RequestMeta {
@@ -100,9 +100,10 @@ export class TeamsService {
     private readonly auditService: AuditService
   ) {}
 
-  async list(user: AuthenticatedUser, query: PaginationQueryDto) {
+  async list(user: AuthenticatedUser, query: TeamQueryDto) {
     const where: Prisma.TeamWhereInput = {
       tenantId: user.tenantId,
+      ...(query.workspaceId ? { workspaceId: query.workspaceId } : {}),
       ...(query.search
         ? {
             OR: [{ name: { contains: query.search, mode: 'insensitive' } }]

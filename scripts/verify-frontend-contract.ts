@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { OpenAPIObject } from '@nestjs/swagger';
 
@@ -19,6 +19,83 @@ interface FrontendClientCheck {
   routeSnippets: string[];
   workflow: string;
 }
+
+const coreApiRequiredEndpoints: RequiredEndpoint[] = [
+  { method: 'post', path: '/api/v1/auth/verify-email', workflow: 'email verification', auth: 'public' },
+  { method: 'post', path: '/api/v1/auth/resend-verification', workflow: 'resend email verification', auth: 'public' },
+  { method: 'post', path: '/api/v1/auth/accept-invite', workflow: 'accept invite', auth: 'public' },
+  { method: 'post', path: '/api/v1/auth/mfa/verify-login', workflow: 'MFA login verification', auth: 'public' },
+  { method: 'post', path: '/api/v1/auth/logout', workflow: 'session logout', auth: 'public' },
+  { method: 'post', path: '/api/v1/auth/forgot-password', workflow: 'forgot password', auth: 'public' },
+  { method: 'post', path: '/api/v1/auth/reset-password', workflow: 'reset password', auth: 'public' },
+  { method: 'post', path: '/api/v1/auth/change-password', workflow: 'change password', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/auth/sso/discovery', workflow: 'SSO discovery', auth: 'public' },
+  { method: 'get', path: '/api/v1/auth/sso/start', workflow: 'SSO start', auth: 'public' },
+  { method: 'post', path: '/api/v1/auth/sso/callback', workflow: 'SSO callback', auth: 'public' },
+  { method: 'get', path: '/api/v1/identity-security/overview', workflow: 'identity security overview', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/identity-security/mfa/totp/setup', workflow: 'TOTP setup', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/identity-security/mfa/totp/enable', workflow: 'TOTP enable', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/identity-security/mfa/disable', workflow: 'MFA disable', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/identity-security/mfa/backup-codes/regenerate', workflow: 'backup code regeneration', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/identity-security/trusted-devices/{deviceId}', workflow: 'trusted device revoke', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/identity-security/sso-providers', workflow: 'SSO provider list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/identity-security/sso-providers', workflow: 'SSO provider upsert', auth: 'bearer' },
+  { method: 'patch', path: '/api/v1/identity-security/login-policy', workflow: 'tenant login policy update', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/admin/sessions', workflow: 'tenant session list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/admin/sessions/{sessionId}/revoke', workflow: 'tenant session revoke', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/admin/users/{userId}/sessions/revoke', workflow: 'user sessions revoke', auth: 'bearer' },
+  { method: 'patch', path: '/api/v1/users/me/profile', workflow: 'profile update', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/users', workflow: 'tenant user list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/users/invite', workflow: 'tenant user invite', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/users/bulk-invite', workflow: 'tenant user bulk invite', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/teams', workflow: 'team create', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/teams/{teamId}/members', workflow: 'team member list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/teams/{teamId}/members', workflow: 'team member add', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/teams/{teamId}/invite', workflow: 'team member invite', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/teams/{teamId}/members/{userId}', workflow: 'team member remove', auth: 'bearer' }
+];
+
+const coreApiFrontendChecks: FrontendClientCheck[] = [
+  { helper: 'login', routeSnippets: ['/api/v1/auth/login'], workflow: 'workspace login' },
+  { helper: 'verifyMfaLogin', routeSnippets: ['/api/v1/auth/mfa/verify-login'], workflow: 'MFA login verification' },
+  { helper: 'register', routeSnippets: ['/api/v1/auth/register'], workflow: 'workspace signup' },
+  { helper: 'verifyEmail', routeSnippets: ['/api/v1/auth/verify-email'], workflow: 'email verification' },
+  { helper: 'resendVerification', routeSnippets: ['/api/v1/auth/resend-verification'], workflow: 'resend email verification' },
+  { helper: 'acceptInvite', routeSnippets: ['/api/v1/auth/accept-invite'], workflow: 'accept invite' },
+  { helper: 'forgotPassword', routeSnippets: ['/api/v1/auth/forgot-password'], workflow: 'forgot password' },
+  { helper: 'resetPassword', routeSnippets: ['/api/v1/auth/reset-password'], workflow: 'reset password' },
+  { helper: 'changePassword', routeSnippets: ['/api/v1/auth/change-password'], workflow: 'change password' },
+  { helper: 'refreshSession', routeSnippets: ['/api/v1/auth/refresh'], workflow: 'session refresh' },
+  { helper: 'logoutSession', routeSnippets: ['/api/v1/auth/logout'], workflow: 'session logout' },
+  { helper: 'getMe', routeSnippets: ['/api/v1/auth/me'], workflow: 'current user bootstrap' },
+  { helper: 'discoverSso', routeSnippets: ['/api/v1/auth/sso/discovery'], workflow: 'SSO discovery' },
+  { helper: 'startSso', routeSnippets: ['/api/v1/auth/sso/start'], workflow: 'SSO start' },
+  { helper: 'completeSso', routeSnippets: ['/api/v1/auth/sso/callback'], workflow: 'SSO callback' },
+  { helper: 'getIdentitySecurityOverview', routeSnippets: ['/api/v1/identity-security/overview'], workflow: 'identity security overview' },
+  { helper: 'setupTotp', routeSnippets: ['/api/v1/identity-security/mfa/totp/setup'], workflow: 'TOTP setup' },
+  { helper: 'enableTotp', routeSnippets: ['/api/v1/identity-security/mfa/totp/enable'], workflow: 'TOTP enable' },
+  { helper: 'disableMfa', routeSnippets: ['/api/v1/identity-security/mfa/disable'], workflow: 'MFA disable' },
+  { helper: 'regenerateBackupCodes', routeSnippets: ['/api/v1/identity-security/mfa/backup-codes/regenerate'], workflow: 'backup code regeneration' },
+  { helper: 'revokeTrustedDevice', routeSnippets: ['/api/v1/identity-security/trusted-devices/{deviceId}'], workflow: 'trusted device revoke' },
+  { helper: 'listSsoProviders', routeSnippets: ['/api/v1/identity-security/sso-providers'], workflow: 'SSO provider list' },
+  { helper: 'upsertSsoProvider', routeSnippets: ['/api/v1/identity-security/sso-providers'], workflow: 'SSO provider upsert' },
+  { helper: 'updateTenantLoginPolicy', routeSnippets: ['/api/v1/identity-security/login-policy'], workflow: 'tenant login policy update' },
+  { helper: 'listSessions', routeSnippets: ['/api/v1/admin/sessions'], workflow: 'tenant session list' },
+  { helper: 'revokeSession', routeSnippets: ['/api/v1/admin/sessions/{sessionId}/revoke'], workflow: 'tenant session revoke' },
+  { helper: 'revokeUserSessions', routeSnippets: ['/api/v1/admin/users/{userId}/sessions/revoke'], workflow: 'user sessions revoke' },
+  { helper: 'updateMyProfile', routeSnippets: ['/api/v1/users/me/profile'], workflow: 'profile update' },
+  { helper: 'listUsers', routeSnippets: ['/api/v1/users'], workflow: 'tenant user list' },
+  { helper: 'inviteTenantUser', routeSnippets: ['/api/v1/users/invite'], workflow: 'tenant user invite' },
+  { helper: 'bulkInviteTenantUsers', routeSnippets: ['/api/v1/users/bulk-invite'], workflow: 'tenant user bulk invite' },
+  { helper: 'listWorkspaces', routeSnippets: ['/api/v1/workspaces'], workflow: 'workspace switcher and create project form' },
+  { helper: 'listTeams', routeSnippets: ['/api/v1/teams'], workflow: 'team selector and capacity views' },
+  { helper: 'createTeam', routeSnippets: ['/api/v1/teams'], workflow: 'team create' },
+  { helper: 'listTeamMembers', routeSnippets: ['/api/v1/teams/{teamId}/members'], workflow: 'team member list' },
+  { helper: 'addTeamMember', routeSnippets: ['/api/v1/teams/{teamId}/members'], workflow: 'team member add' },
+  { helper: 'updateTeamMemberRole', routeSnippets: ['/api/v1/teams/{teamId}/members'], workflow: 'team member role update' },
+  { helper: 'removeTeamMember', routeSnippets: ['/api/v1/teams/{teamId}/members/{userId}'], workflow: 'team member remove' },
+  { helper: 'inviteTeamMember', routeSnippets: ['/api/v1/teams/{teamId}/invite'], workflow: 'team member invite' }
+];
 
 const meetingBookingRequiredEndpoints: RequiredEndpoint[] = [
   { method: 'get', path: '/api/v1/meetings/types', workflow: 'meeting type list', auth: 'bearer' },
@@ -183,6 +260,7 @@ const requiredEndpoints: RequiredEndpoint[] = [
   { method: 'get', path: '/api/v1/auth/me', workflow: 'current user bootstrap', auth: 'bearer' },
   { method: 'get', path: '/api/v1/workspaces', workflow: 'workspace switcher and create project form', auth: 'bearer' },
   { method: 'get', path: '/api/v1/teams', workflow: 'team selector and capacity views', auth: 'bearer' },
+  ...coreApiRequiredEndpoints,
   { method: 'get', path: '/api/v1/projects', workflow: 'project portfolio list', auth: 'bearer' },
   { method: 'post', path: '/api/v1/projects', workflow: 'create project flow', auth: 'bearer' },
   { method: 'get', path: '/api/v1/projects/{projectId}', workflow: 'project detail load', auth: 'bearer' },
@@ -285,6 +363,7 @@ const requiredEndpoints: RequiredEndpoint[] = [
 ];
 
 const frontendClientChecks: FrontendClientCheck[] = [
+  ...coreApiFrontendChecks,
   {
     helper: 'listProjects',
     routeSnippets: ['/projects?${params.toString()}', '/api/v1/projects'],
@@ -775,7 +854,12 @@ function operationHasBearerAuth(operation: OperationWithSecurity | undefined) {
 
 function readFrontendClient() {
   const frontendClientPath = resolve(process.cwd(), '..', 'taskbricks-fe', 'src', 'lib', 'api.ts');
-  return readFileSync(frontendClientPath, 'utf8');
+  const frontendApiDir = resolve(process.cwd(), '..', 'taskbricks-fe', 'src', 'lib', 'api');
+  const moduleSources = readdirSync(frontendApiDir)
+    .filter((entry) => entry.endsWith('.ts'))
+    .map((entry) => readFileSync(join(frontendApiDir, entry), 'utf8'));
+
+  return [readFileSync(frontendClientPath, 'utf8'), ...moduleSources].join('\n');
 }
 
 function findMissingFrontendClientChecks(frontendClient: string) {

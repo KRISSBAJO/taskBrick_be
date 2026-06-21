@@ -7287,7 +7287,7 @@
         "parameters": [
           {
             "name": "email",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -7295,7 +7295,7 @@
           },
           {
             "name": "tenantSlug",
-            "required": true,
+            "required": false,
             "in": "query",
             "schema": {
               "type": "string"
@@ -8510,6 +8510,14 @@
           },
           {
             "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "workspaceId",
             "required": false,
             "in": "query",
             "schema": {

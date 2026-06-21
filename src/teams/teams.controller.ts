@@ -24,10 +24,10 @@ import { RequirePermissions } from '../auth/decorators/require-permissions.decor
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
-import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { AddTeamMemberDto } from './dto/add-team-member.dto';
 import { CreateTeamDto } from './dto/create-team.dto';
 import { InviteTeamMemberDto } from './dto/invite-team-member.dto';
+import { TeamQueryDto } from './dto/team-query.dto';
 import { UpdateTeamDto } from './dto/update-team.dto';
 import { TeamsService } from './teams.service';
 
@@ -55,7 +55,7 @@ export class TeamsController {
   @ApiOkResponse({ description: 'Paginated tenant teams' })
   list(
     @CurrentUser() user: AuthenticatedUser,
-    @Query() query: PaginationQueryDto
+    @Query() query: TeamQueryDto
   ) {
     return this.teamsService.list(user, query);
   }
