@@ -10,6 +10,11 @@ jobs:
   backend:
     name: Lint, OpenAPI drift, contract, tests, and build
     runs-on: ubuntu-latest
+    env:
+      NODE_ENV: test
+      DATABASE_URL: postgresql://taskbricks:taskbricks@localhost:5432/taskbricks_ci?schema=public
+      JWT_ACCESS_SECRET: ci-access-secret-for-taskbricks-tests-123456
+      JWT_REFRESH_SECRET: ci-refresh-secret-for-taskbricks-tests-123456
     defaults:
       run:
         working-directory: taskbricks-be
