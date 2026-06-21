@@ -38,3 +38,5 @@ jobs:
 
       - name: CI checks
         run: npm run ci:check
+        env:
+          DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/taskbricks_test"
