@@ -20,7 +20,7 @@
     "test:migration": "prisma validate",
     "test:ci": "jest --runInBand --passWithNoTests",
     "test:watch": "jest --watch",
-    "ci:check": "npm run lint && npm run prisma:validate && npm run frontend:contract && npm run test:ci && npm run build",
+    "ci:check": "npm run lint && npm run prisma:validate && npm run openapi:check && ts-node scripts/verify-frontend-contract.ts && npm run test:ci && npm run build",
     "prisma:generate": "prisma generate",
     "prisma:validate": "prisma validate",
     "prisma:migrate": "prisma migrate dev",
@@ -28,6 +28,7 @@
     "prisma:seed": "prisma db seed",
     "prisma:studio": "prisma studio",
     "openapi:export": "ts-node scripts/export-openapi.ts",
+    "openapi:check": "npm run openapi:export && git diff --exit-code -- docs/api/openapi.json",
     "frontend:contract": "npm run openapi:export && ts-node scripts/verify-frontend-contract.ts"
   },
   "prisma": {

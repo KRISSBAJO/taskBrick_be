@@ -1,0 +1,40 @@
+name: Backend CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  backend:
+    name: Lint, OpenAPI drift, contract, tests, and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: taskbricks-be
+
+    steps:
+      - name: Checkout backend
+        uses: actions/checkout@v4
+        with:
+          path: taskbricks-be
+
+      - name: Checkout frontend contract target
+        uses: actions/checkout@v4
+        with:
+          repository: KRISSBAJO/taskBrick_fe
+          path: taskbricks-fe
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: taskbricks-be/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: CI checks
+        run: npm run ci:check
