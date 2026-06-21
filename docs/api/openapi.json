@@ -30193,10 +30193,12 @@
             "type": "string"
           },
           "dueDate": {
-            "type": "object"
+            "type": "string",
+            "nullable": true
           },
           "completedAt": {
-            "type": "object"
+            "type": "string",
+            "nullable": true
           }
         }
       },

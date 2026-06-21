@@ -14,12 +14,12 @@ export class UpdateMilestoneDto {
   @MaxLength(1000)
   description?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsDateString()
   dueDate?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ type: String, nullable: true })
   @IsOptional()
   @IsDateString()
   completedAt?: string | null;

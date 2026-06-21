@@ -33,6 +33,37 @@ const requiredEndpoints: RequiredEndpoint[] = [
   { method: 'post', path: '/api/v1/projects', workflow: 'create project flow', auth: 'bearer' },
   { method: 'get', path: '/api/v1/projects/{projectId}', workflow: 'project detail load', auth: 'bearer' },
   { method: 'patch', path: '/api/v1/projects/{projectId}', workflow: 'update project flow', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/projects/{projectId}/members', workflow: 'project member list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/projects/{projectId}/members', workflow: 'project member upsert', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/projects/{projectId}/members/{userId}', workflow: 'project member removal', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/projects/{projectId}/milestones', workflow: 'project milestone list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/projects/{projectId}/milestones', workflow: 'project milestone create', auth: 'bearer' },
+  { method: 'patch', path: '/api/v1/projects/{projectId}/milestones/{milestoneId}', workflow: 'project milestone update', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/projects/{projectId}/milestones/{milestoneId}', workflow: 'project milestone delete', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/projects/{projectId}/risks', workflow: 'project risk list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/projects/{projectId}/risks', workflow: 'project risk create', auth: 'bearer' },
+  { method: 'patch', path: '/api/v1/projects/{projectId}/risks/{riskId}', workflow: 'project risk update', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/projects/{projectId}/risks/{riskId}', workflow: 'project risk delete', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/projects/{projectId}/budgets', workflow: 'project budget list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/projects/{projectId}/budgets', workflow: 'project budget create', auth: 'bearer' },
+  { method: 'patch', path: '/api/v1/projects/{projectId}/budgets/{budgetId}', workflow: 'project budget update', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/projects/{projectId}/budgets/{budgetId}', workflow: 'project budget delete', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/projects/{projectId}/stakeholders', workflow: 'project stakeholder list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/projects/{projectId}/stakeholders', workflow: 'project stakeholder create', auth: 'bearer' },
+  { method: 'patch', path: '/api/v1/projects/{projectId}/stakeholders/{stakeholderId}', workflow: 'project stakeholder update', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/projects/{projectId}/stakeholders/{stakeholderId}', workflow: 'project stakeholder delete', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/projects/{projectId}/dependencies', workflow: 'project dependency list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/projects/{projectId}/dependencies', workflow: 'project dependency create', auth: 'bearer' },
+  { method: 'patch', path: '/api/v1/projects/{projectId}/dependencies/{dependencyId}', workflow: 'project dependency update', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/projects/{projectId}/dependencies/{dependencyId}', workflow: 'project dependency delete', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/projects/{projectId}/decisions', workflow: 'project decision list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/projects/{projectId}/decisions', workflow: 'project decision create', auth: 'bearer' },
+  { method: 'patch', path: '/api/v1/projects/{projectId}/decisions/{decisionId}', workflow: 'project decision update', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/projects/{projectId}/decisions/{decisionId}', workflow: 'project decision delete', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/projects/{projectId}/change-requests', workflow: 'project change request list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/projects/{projectId}/change-requests', workflow: 'project change request create', auth: 'bearer' },
+  { method: 'patch', path: '/api/v1/projects/{projectId}/change-requests/{changeRequestId}', workflow: 'project change request update', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/projects/{projectId}/change-requests/{changeRequestId}', workflow: 'project change request delete', auth: 'bearer' },
   { method: 'get', path: '/api/v1/tasks', workflow: 'task list and board hydration', auth: 'bearer' },
   { method: 'post', path: '/api/v1/tasks', workflow: 'create task flow', auth: 'bearer' },
   { method: 'get', path: '/api/v1/tasks/{taskId}', workflow: 'task detail load', auth: 'bearer' },
@@ -66,6 +97,161 @@ const frontendClientChecks: FrontendClientCheck[] = [
     helper: 'updateProject',
     routeSnippets: ['/projects/${projectId}', '/api/v1/projects/{projectId}'],
     workflow: 'update project flow'
+  },
+  {
+    helper: 'listProjectMembers',
+    routeSnippets: ['/api/v1/projects/{projectId}/members'],
+    workflow: 'project member list'
+  },
+  {
+    helper: 'upsertProjectMember',
+    routeSnippets: ['/api/v1/projects/{projectId}/members'],
+    workflow: 'project member upsert'
+  },
+  {
+    helper: 'removeProjectMember',
+    routeSnippets: ['/api/v1/projects/{projectId}/members/{userId}'],
+    workflow: 'project member removal'
+  },
+  {
+    helper: 'listProjectMilestones',
+    routeSnippets: ['/api/v1/projects/{projectId}/milestones'],
+    workflow: 'project milestone list'
+  },
+  {
+    helper: 'createProjectMilestone',
+    routeSnippets: ['/api/v1/projects/{projectId}/milestones'],
+    workflow: 'project milestone create'
+  },
+  {
+    helper: 'updateProjectMilestone',
+    routeSnippets: ['/api/v1/projects/{projectId}/milestones/{milestoneId}'],
+    workflow: 'project milestone update'
+  },
+  {
+    helper: 'deleteProjectMilestone',
+    routeSnippets: ['/api/v1/projects/{projectId}/milestones/{milestoneId}'],
+    workflow: 'project milestone delete'
+  },
+  {
+    helper: 'listProjectRisks',
+    routeSnippets: ['/api/v1/projects/{projectId}/risks'],
+    workflow: 'project risk list'
+  },
+  {
+    helper: 'createProjectRisk',
+    routeSnippets: ['/api/v1/projects/{projectId}/risks'],
+    workflow: 'project risk create'
+  },
+  {
+    helper: 'updateProjectRisk',
+    routeSnippets: ['/api/v1/projects/{projectId}/risks/{riskId}'],
+    workflow: 'project risk update'
+  },
+  {
+    helper: 'deleteProjectRisk',
+    routeSnippets: ['/api/v1/projects/{projectId}/risks/{riskId}'],
+    workflow: 'project risk delete'
+  },
+  {
+    helper: 'listProjectBudgets',
+    routeSnippets: ['/api/v1/projects/{projectId}/budgets'],
+    workflow: 'project budget list'
+  },
+  {
+    helper: 'createProjectBudget',
+    routeSnippets: ['/api/v1/projects/{projectId}/budgets'],
+    workflow: 'project budget create'
+  },
+  {
+    helper: 'updateProjectBudget',
+    routeSnippets: ['/api/v1/projects/{projectId}/budgets/{budgetId}'],
+    workflow: 'project budget update'
+  },
+  {
+    helper: 'deleteProjectBudget',
+    routeSnippets: ['/api/v1/projects/{projectId}/budgets/{budgetId}'],
+    workflow: 'project budget delete'
+  },
+  {
+    helper: 'listProjectStakeholders',
+    routeSnippets: ['/api/v1/projects/{projectId}/stakeholders'],
+    workflow: 'project stakeholder list'
+  },
+  {
+    helper: 'createProjectStakeholder',
+    routeSnippets: ['/api/v1/projects/{projectId}/stakeholders'],
+    workflow: 'project stakeholder create'
+  },
+  {
+    helper: 'updateProjectStakeholder',
+    routeSnippets: ['/api/v1/projects/{projectId}/stakeholders/{stakeholderId}'],
+    workflow: 'project stakeholder update'
+  },
+  {
+    helper: 'deleteProjectStakeholder',
+    routeSnippets: ['/api/v1/projects/{projectId}/stakeholders/{stakeholderId}'],
+    workflow: 'project stakeholder delete'
+  },
+  {
+    helper: 'listProjectDependencies',
+    routeSnippets: ['/api/v1/projects/{projectId}/dependencies'],
+    workflow: 'project dependency list'
+  },
+  {
+    helper: 'createProjectDependency',
+    routeSnippets: ['/api/v1/projects/{projectId}/dependencies'],
+    workflow: 'project dependency create'
+  },
+  {
+    helper: 'updateProjectDependency',
+    routeSnippets: ['/api/v1/projects/{projectId}/dependencies/{dependencyId}'],
+    workflow: 'project dependency update'
+  },
+  {
+    helper: 'deleteProjectDependency',
+    routeSnippets: ['/api/v1/projects/{projectId}/dependencies/{dependencyId}'],
+    workflow: 'project dependency delete'
+  },
+  {
+    helper: 'listProjectDecisions',
+    routeSnippets: ['/api/v1/projects/{projectId}/decisions'],
+    workflow: 'project decision list'
+  },
+  {
+    helper: 'createProjectDecision',
+    routeSnippets: ['/api/v1/projects/{projectId}/decisions'],
+    workflow: 'project decision create'
+  },
+  {
+    helper: 'updateProjectDecision',
+    routeSnippets: ['/api/v1/projects/{projectId}/decisions/{decisionId}'],
+    workflow: 'project decision update'
+  },
+  {
+    helper: 'deleteProjectDecision',
+    routeSnippets: ['/api/v1/projects/{projectId}/decisions/{decisionId}'],
+    workflow: 'project decision delete'
+  },
+  {
+    helper: 'listProjectChangeRequests',
+    routeSnippets: ['/api/v1/projects/{projectId}/change-requests'],
+    workflow: 'project change request list'
+  },
+  {
+    helper: 'createProjectChangeRequest',
+    routeSnippets: ['/api/v1/projects/{projectId}/change-requests'],
+    workflow: 'project change request create'
+  },
+  {
+    helper: 'updateProjectChangeRequest',
+    routeSnippets: ['/api/v1/projects/{projectId}/change-requests/{changeRequestId}'],
+    workflow: 'project change request update'
+  },
+  {
+    helper: 'deleteProjectChangeRequest',
+    routeSnippets: ['/api/v1/projects/{projectId}/change-requests/{changeRequestId}'],
+    workflow: 'project change request delete'
   },
   {
     helper: 'listTasks',
