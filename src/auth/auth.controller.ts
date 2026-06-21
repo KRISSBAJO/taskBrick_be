@@ -31,6 +31,7 @@ import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthenticatedUser } from './interfaces/authenticated-user.interface';
 
 const AUTH_CLIENT_HEADER = 'x-taskbricks-client';
+const nativeClientHints = new Set(['mobile', 'native', 'desktop']);
 const nativeAuthClientHeader = {
   name: 'X-TaskBricks-Client',
   required: false,
@@ -300,7 +301,13 @@ export class AuthController {
   }
 
   private isNativeClient(request: Request) {
-    const value = `${request.header(AUTH_CLIENT_HEADER) ?? ''}`.trim().toLowerCase();
-    return value === 'mobile' || value === 'native' || value === 'desktop';
+    const headerValue = this.normalizeClientHint(request.header(AUTH_CLIENT_HEADER));
+    const queryValue = this.normalizeClientHint(request.query?.client ?? request.query?.clientType ?? request.query?.platform);
+    return nativeClientHints.has(headerValue) || nativeClientHints.has(queryValue);
+  }
+
+  private normalizeClientHint(value: unknown) {
+    const rawValue = Array.isArray(value) ? value[0] : value;
+    return `${rawValue ?? ''}`.trim().toLowerCase();
   }
 }
