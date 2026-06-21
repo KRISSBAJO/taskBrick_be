@@ -11221,7 +11221,17 @@
     "/api/v1/auth/register": {
       "post": {
         "operationId": "Auth_register",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-TaskBricks-Client",
+            "in": "header",
+            "description": "Set to \"mobile\" or \"native\" for non-browser clients that need refresh and trusted-device tokens in JSON responses.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -11260,7 +11270,17 @@
     "/api/v1/auth/verify-email": {
       "post": {
         "operationId": "Auth_verifyEmail",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-TaskBricks-Client",
+            "in": "header",
+            "description": "Set to \"mobile\" or \"native\" for non-browser clients that need refresh and trusted-device tokens in JSON responses.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -11324,7 +11344,17 @@
     "/api/v1/auth/accept-invite": {
       "post": {
         "operationId": "Auth_acceptInvite",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-TaskBricks-Client",
+            "in": "header",
+            "description": "Set to \"mobile\" or \"native\" for non-browser clients that need refresh and trusted-device tokens in JSON responses.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -11356,7 +11386,17 @@
     "/api/v1/auth/login": {
       "post": {
         "operationId": "Auth_login",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-TaskBricks-Client",
+            "in": "header",
+            "description": "Set to \"mobile\" or \"native\" for non-browser clients that need refresh and trusted-device tokens in JSON responses.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -11398,7 +11438,17 @@
     "/api/v1/auth/mfa/verify-login": {
       "post": {
         "operationId": "Auth_verifyMfaLogin",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-TaskBricks-Client",
+            "in": "header",
+            "description": "Set to \"mobile\" or \"native\" for non-browser clients that need refresh and trusted-device tokens in JSON responses.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -11430,7 +11480,17 @@
     "/api/v1/auth/sso/callback": {
       "post": {
         "operationId": "Auth_ssoCallback",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-TaskBricks-Client",
+            "in": "header",
+            "description": "Set to \"mobile\" or \"native\" for non-browser clients that need refresh and trusted-device tokens in JSON responses.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
           "required": true,
           "content": {
@@ -11462,9 +11522,19 @@
     "/api/v1/auth/refresh": {
       "post": {
         "operationId": "Auth_refresh",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-TaskBricks-Client",
+            "in": "header",
+            "description": "Set to \"mobile\" or \"native\" for non-browser clients that need refresh and trusted-device tokens in JSON responses.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
         "requestBody": {
-          "required": true,
+          "required": false,
           "content": {
             "application/json": {
               "schema": {
@@ -11497,7 +11567,27 @@
     "/api/v1/auth/logout": {
       "post": {
         "operationId": "Auth_logout",
-        "parameters": [],
+        "parameters": [
+          {
+            "name": "X-TaskBricks-Client",
+            "in": "header",
+            "description": "Set to \"mobile\" or \"native\" for non-browser clients that need refresh and trusted-device tokens in JSON responses.",
+            "required": false,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RefreshTokenDto"
+              }
+            }
+          }
+        },
         "responses": {
           "200": {
             "description": "",

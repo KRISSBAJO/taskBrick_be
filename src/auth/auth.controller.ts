@@ -1,8 +1,10 @@
 import { Body, Controller, Get, Post, Req, Res, UnauthorizedException, UseGuards, Version } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import {
+  ApiBody,
   ApiBearerAuth,
   ApiCreatedResponse,
+  ApiHeader,
   ApiOkResponse,
   ApiOperation,
   ApiTags,
@@ -27,6 +29,13 @@ import { VerifyMfaLoginDto } from '../identity-security/dto/mfa-login.dto';
 import { SsoCallbackDto } from '../identity-security/dto/sso-provider.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { AuthenticatedUser } from './interfaces/authenticated-user.interface';
+
+const AUTH_CLIENT_HEADER = 'x-taskbricks-client';
+const nativeAuthClientHeader = {
+  name: 'X-TaskBricks-Client',
+  required: false,
+  description: 'Set to "mobile" or "native" for non-browser clients that need refresh and trusted-device tokens in JSON responses.'
+} as const;
 
 @ApiTags('auth')
 @Controller('auth')
@@ -53,18 +62,20 @@ export class AuthController {
   @Version('1')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @ApiOperation({ summary: 'Register a tenant owner and bootstrap a new tenant' })
+  @ApiHeader(nativeAuthClientHeader)
   @ApiCreatedResponse({ type: AuthResponseDto })
   async register(@Body() dto: RegisterDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
-    return this.withAuthCookies(response, await this.authService.register(dto, this.getRequestMeta(request)));
+    return this.withAuthCookies(request, response, await this.authService.register(dto, this.getRequestMeta(request)));
   }
 
   @Post('verify-email')
   @Version('1')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @ApiOperation({ summary: 'Verify an email address with a single-use token' })
+  @ApiHeader(nativeAuthClientHeader)
   @ApiOkResponse({ type: AuthResponseDto })
   async verifyEmail(@Body() dto: VerifyEmailDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
-    return this.withAuthCookies(response, await this.authService.verifyEmail(dto, this.getRequestMeta(request)));
+    return this.withAuthCookies(request, response, await this.authService.verifyEmail(dto, this.getRequestMeta(request)));
   }
 
   @Post('resend-verification')
@@ -80,20 +91,23 @@ export class AuthController {
   @Version('1')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @ApiOperation({ summary: 'Accept an invitation, set password, and activate account' })
+  @ApiHeader(nativeAuthClientHeader)
   @ApiOkResponse({ type: AuthResponseDto })
   async acceptInvite(@Body() dto: AcceptInviteDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
-    return this.withAuthCookies(response, await this.authService.acceptInvite(dto, this.getRequestMeta(request)));
+    return this.withAuthCookies(request, response, await this.authService.acceptInvite(dto, this.getRequestMeta(request)));
   }
 
   @Post('login')
   @Version('1')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @ApiOperation({ summary: 'Log in with tenant slug, email, and password' })
+  @ApiHeader(nativeAuthClientHeader)
   @ApiOkResponse({ type: AuthResponseDto })
   @ApiUnauthorizedResponse({ description: 'Invalid credentials or inactive account' })
   async login(@Body() dto: LoginDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
     const trustedDeviceToken = dto.trustedDeviceToken ?? this.readCookie(request, AUTH_TRUSTED_DEVICE_COOKIE);
     return this.withAuthCookies(
+      request,
       response,
       await this.authService.login({ ...dto, trustedDeviceToken }, this.getRequestMeta(request))
     );
@@ -103,24 +117,28 @@ export class AuthController {
   @Version('1')
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
   @ApiOperation({ summary: 'Complete login by verifying MFA challenge' })
+  @ApiHeader(nativeAuthClientHeader)
   @ApiOkResponse({ type: AuthResponseDto })
   async verifyMfaLogin(@Body() dto: VerifyMfaLoginDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
-    return this.withAuthCookies(response, await this.authService.verifyMfaLogin(dto, this.getRequestMeta(request)));
+    return this.withAuthCookies(request, response, await this.authService.verifyMfaLogin(dto, this.getRequestMeta(request)));
   }
 
   @Post('sso/callback')
   @Version('1')
   @Throttle({ default: { limit: 40, ttl: 60_000 } })
   @ApiOperation({ summary: 'Complete OAuth/OIDC SSO login and issue application tokens' })
+  @ApiHeader(nativeAuthClientHeader)
   @ApiOkResponse({ type: AuthResponseDto })
   async ssoCallback(@Body() dto: SsoCallbackDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
-    return this.withAuthCookies(response, await this.authService.completeSsoLogin(dto, this.getRequestMeta(request)));
+    return this.withAuthCookies(request, response, await this.authService.completeSsoLogin(dto, this.getRequestMeta(request)));
   }
 
   @Post('refresh')
   @Version('1')
   @Throttle({ default: { limit: 40, ttl: 60_000 } })
   @ApiOperation({ summary: 'Rotate refresh token and issue new access token' })
+  @ApiHeader(nativeAuthClientHeader)
+  @ApiBody({ type: RefreshTokenDto, required: false })
   @ApiOkResponse({ type: AuthResponseDto })
   @ApiUnauthorizedResponse({ description: 'Invalid or revoked refresh token' })
   async refresh(@Body() dto: RefreshTokenDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
@@ -130,15 +148,17 @@ export class AuthController {
       throw new UnauthorizedException('Refresh token is required');
     }
 
-    return this.withAuthCookies(response, await this.authService.refresh(refreshToken, this.getRequestMeta(request)));
+    return this.withAuthCookies(request, response, await this.authService.refresh(refreshToken, this.getRequestMeta(request)));
   }
 
   @Post('logout')
   @Version('1')
   @ApiOperation({ summary: 'Revoke the current auth session' })
+  @ApiHeader(nativeAuthClientHeader)
+  @ApiBody({ type: RefreshTokenDto, required: false })
   @ApiOkResponse({ schema: { example: { success: true } } })
-  async logout(@Req() request: Request, @Res({ passthrough: true }) response: Response) {
-    const refreshToken = this.readCookie(request, AUTH_REFRESH_COOKIE);
+  async logout(@Body() dto: RefreshTokenDto, @Req() request: Request, @Res({ passthrough: true }) response: Response) {
+    const refreshToken = dto?.refreshToken ?? this.readCookie(request, AUTH_REFRESH_COOKIE);
     this.clearAuthCookies(response);
     return this.authService.logoutByRefreshToken(refreshToken, this.getRequestMeta(request));
   }
@@ -192,8 +212,12 @@ export class AuthController {
     };
   }
 
-  private withAuthCookies<T>(response: Response, result: T): T {
+  private withAuthCookies<T>(request: Request, response: Response, result: T): T {
     if (!this.isAuthResponse(result)) {
+      return result;
+    }
+
+    if (this.isNativeClient(request)) {
       return result;
     }
 
@@ -273,5 +297,10 @@ export class AuthController {
     }
 
     return undefined;
+  }
+
+  private isNativeClient(request: Request) {
+    const value = `${request.header(AUTH_CLIENT_HEADER) ?? ''}`.trim().toLowerCase();
+    return value === 'mobile' || value === 'native' || value === 'desktop';
   }
 }
