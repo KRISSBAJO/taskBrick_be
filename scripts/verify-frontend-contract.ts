@@ -52,7 +52,18 @@ const coreApiRequiredEndpoints: RequiredEndpoint[] = [
   { method: 'get', path: '/api/v1/teams/{teamId}/members', workflow: 'team member list', auth: 'bearer' },
   { method: 'post', path: '/api/v1/teams/{teamId}/members', workflow: 'team member add', auth: 'bearer' },
   { method: 'post', path: '/api/v1/teams/{teamId}/invite', workflow: 'team member invite', auth: 'bearer' },
-  { method: 'delete', path: '/api/v1/teams/{teamId}/members/{userId}', workflow: 'team member remove', auth: 'bearer' }
+  { method: 'delete', path: '/api/v1/teams/{teamId}/members/{userId}', workflow: 'team member remove', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/health/ready', workflow: 'backend readiness probe', auth: 'public' },
+  { method: 'get', path: '/api/v1/search', workflow: 'command center global search', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/permissions', workflow: 'tenant permission list', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/roles', workflow: 'tenant role list', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/roles', workflow: 'tenant role create', auth: 'bearer' },
+  { method: 'patch', path: '/api/v1/roles/{roleId}', workflow: 'tenant role update', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/roles/{roleId}', workflow: 'tenant role delete', auth: 'bearer' },
+  { method: 'post', path: '/api/v1/roles/assignments', workflow: 'tenant role assignment', auth: 'bearer' },
+  { method: 'delete', path: '/api/v1/roles/{roleId}/users/{userId}', workflow: 'tenant role removal', auth: 'bearer' },
+  { method: 'get', path: '/api/v1/tenants/current', workflow: 'current tenant load', auth: 'bearer' },
+  { method: 'patch', path: '/api/v1/tenants/current', workflow: 'current tenant update', auth: 'bearer' }
 ];
 
 const coreApiFrontendChecks: FrontendClientCheck[] = [
@@ -94,7 +105,18 @@ const coreApiFrontendChecks: FrontendClientCheck[] = [
   { helper: 'addTeamMember', routeSnippets: ['/api/v1/teams/{teamId}/members'], workflow: 'team member add' },
   { helper: 'updateTeamMemberRole', routeSnippets: ['/api/v1/teams/{teamId}/members'], workflow: 'team member role update' },
   { helper: 'removeTeamMember', routeSnippets: ['/api/v1/teams/{teamId}/members/{userId}'], workflow: 'team member remove' },
-  { helper: 'inviteTeamMember', routeSnippets: ['/api/v1/teams/{teamId}/invite'], workflow: 'team member invite' }
+  { helper: 'inviteTeamMember', routeSnippets: ['/api/v1/teams/{teamId}/invite'], workflow: 'team member invite' },
+  { helper: 'healthReady', routeSnippets: ['/api/v1/health/ready'], workflow: 'backend readiness probe' },
+  { helper: 'globalSearch', routeSnippets: ['/api/v1/search'], workflow: 'command center global search' },
+  { helper: 'listPermissions', routeSnippets: ['/api/v1/permissions'], workflow: 'tenant permission list' },
+  { helper: 'listRoles', routeSnippets: ['/api/v1/roles'], workflow: 'tenant role list' },
+  { helper: 'createRole', routeSnippets: ['/api/v1/roles'], workflow: 'tenant role create' },
+  { helper: 'updateRole', routeSnippets: ['/api/v1/roles/{roleId}'], workflow: 'tenant role update' },
+  { helper: 'deleteRole', routeSnippets: ['/api/v1/roles/{roleId}'], workflow: 'tenant role delete' },
+  { helper: 'assignRole', routeSnippets: ['/api/v1/roles/assignments'], workflow: 'tenant role assignment' },
+  { helper: 'removeRoleFromUser', routeSnippets: ['/api/v1/roles/{roleId}/users/{userId}'], workflow: 'tenant role removal' },
+  { helper: 'getCurrentTenant', routeSnippets: ['/api/v1/tenants/current'], workflow: 'current tenant load' },
+  { helper: 'updateCurrentTenant', routeSnippets: ['/api/v1/tenants/current'], workflow: 'current tenant update' }
 ];
 
 const meetingBookingRequiredEndpoints: RequiredEndpoint[] = [
