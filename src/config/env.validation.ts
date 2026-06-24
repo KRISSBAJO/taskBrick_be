@@ -179,6 +179,8 @@ export const envValidationSchema = Joi.object({
 
   AI_ENABLED: booleanValue.default(false),
   AI_DEFAULT_PROVIDER: Joi.string().valid('local', 'openai', 'anthropic').default('openai'),
+  AI_DEFAULT_MODEL: optionalText,
+  OPENAI_MODEL: optionalText,
   OPENAI_API_KEY: optionalText,
   ANTHROPIC_API_KEY: optionalText,
   AI_REQUEST_TIMEOUT_MS: Joi.number().integer().positive().default(60000),

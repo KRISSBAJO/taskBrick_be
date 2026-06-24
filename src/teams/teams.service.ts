@@ -3,9 +3,11 @@ import {
   Injectable,
   NotFoundException
 } from '@nestjs/common';
-import { Prisma, UserStatus } from '@prisma/client';
+import { NotificationChannel, Prisma, UserStatus } from '@prisma/client';
 import { AuditService } from '../audit/audit.service';
+import { AuthService } from '../auth/auth.service';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddTeamMemberDto } from './dto/add-team-member.dto';
 import { CreateTeamDto } from './dto/create-team.dto';
@@ -97,7 +99,9 @@ const teamMemberSelect = {
 export class TeamsService {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly auditService: AuditService
+    private readonly auditService: AuditService,
+    private readonly authService: AuthService,
+    private readonly notificationsService: NotificationsService
   ) {}
 
   async list(user: AuthenticatedUser, query: TeamQueryDto) {
@@ -299,7 +303,7 @@ export class TeamsService {
     dto: InviteTeamMemberDto,
     meta: RequestMeta
   ) {
-    await this.getTenantTeamOrThrow(user.tenantId, teamId);
+    const team = await this.getTenantTeamOrThrow(user.tenantId, teamId);
     const email = dto.email.toLowerCase().trim();
 
     if (dto.roleIds?.length) {
@@ -314,8 +318,12 @@ export class TeamsService {
             email
           }
         },
-        select: { id: true }
+        select: { id: true, status: true }
       });
+
+      if (existing?.status === UserStatus.DEACTIVATED || existing?.status === UserStatus.SUSPENDED) {
+        throw new BadRequestException('Suspended or deactivated users cannot be invited to a team');
+      }
 
       const memberUser = existing
         ? await tx.user.update({
@@ -324,7 +332,7 @@ export class TeamsService {
               firstName: dto.firstName,
               lastName: dto.lastName
             },
-            select: { id: true }
+            select: { id: true, status: true }
           })
         : await tx.user.create({
             data: {
@@ -334,7 +342,7 @@ export class TeamsService {
               lastName: dto.lastName,
               status: UserStatus.INVITED
             },
-            select: { id: true }
+            select: { id: true, status: true }
           });
 
       if (dto.roleIds?.length) {
@@ -386,7 +394,99 @@ export class TeamsService {
       userAgent: meta.userAgent
     });
 
+    await this.deliverTeamInvite(user, team, member.userId, invited.status, dto.teamRole, meta);
+
     return member;
+  }
+
+  async resendMemberInvite(
+    user: AuthenticatedUser,
+    teamId: string,
+    userId: string,
+    meta: RequestMeta
+  ) {
+    const team = await this.getTenantTeamOrThrow(user.tenantId, teamId);
+    const member = await this.getTeamMemberOrThrow(user.tenantId, teamId, userId);
+
+    if (member.user.status === UserStatus.DEACTIVATED || member.user.status === UserStatus.SUSPENDED) {
+      throw new BadRequestException('Only active or pending users can receive team invitations');
+    }
+
+    const delivery = await this.deliverTeamInvite(
+      user,
+      team,
+      member.userId,
+      member.user.status,
+      member.role ?? undefined,
+      meta
+    );
+
+    await this.auditService.record({
+      tenantId: user.tenantId,
+      actorId: user.id,
+      action: 'team.member_invite_resend',
+      entityType: 'TeamMember',
+      entityId: member.id,
+      newValue: {
+        teamId,
+        userId,
+        delivery
+      },
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent
+    });
+
+    return { success: true, delivery, member };
+  }
+
+  async cancelMemberInvitation(
+    user: AuthenticatedUser,
+    teamId: string,
+    userId: string,
+    meta: RequestMeta
+  ) {
+    await this.getTenantTeamOrThrow(user.tenantId, teamId);
+    const member = await this.getTeamMemberOrThrow(user.tenantId, teamId, userId);
+
+    if (member.user.status !== UserStatus.INVITED) {
+      throw new BadRequestException('Only pending invitations can be cancelled');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.teamMember.deleteMany({
+        where: {
+          teamId,
+          userId
+        }
+      }),
+      this.prisma.emailVerificationToken.updateMany({
+        where: {
+          tenantId: user.tenantId,
+          userId,
+          usedAt: null
+        },
+        data: {
+          usedAt: new Date()
+        }
+      })
+    ]);
+
+    await this.auditService.record({
+      tenantId: user.tenantId,
+      actorId: user.id,
+      action: 'team.member_invite_cancel',
+      entityType: 'TeamMember',
+      entityId: member.id,
+      oldValue: {
+        teamId,
+        userId,
+        email: member.user.email
+      },
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent
+    });
+
+    return { success: true };
   }
 
   async removeMember(
@@ -497,5 +597,45 @@ export class TeamsService {
     }
 
     return member;
+  }
+
+  private async deliverTeamInvite(
+    actor: AuthenticatedUser,
+    team: { id: string; name: string },
+    targetUserId: string,
+    targetStatus: UserStatus,
+    teamRole: string | undefined,
+    meta: RequestMeta
+  ) {
+    if (targetStatus === UserStatus.INVITED) {
+      await this.authService.sendInvitation(targetUserId, actor.id, meta);
+      return 'email';
+    }
+
+    if (targetStatus === UserStatus.ACTIVE) {
+      await this.notificationsService.create(actor, {
+        userIds: [targetUserId],
+        title: `You were added to ${team.name}`,
+        body: `${this.displayActor(actor)} added you to ${team.name}${teamRole ? ` as ${teamRole}` : ''}.`,
+        channels: [NotificationChannel.IN_APP],
+        critical: false,
+        data: {
+          type: 'team.member_added',
+          teamId: team.id,
+          teamName: team.name,
+          teamRole,
+          actorId: actor.id
+        }
+      }, meta);
+
+      return 'in_app';
+    }
+
+    return 'none';
+  }
+
+  private displayActor(user: AuthenticatedUser) {
+    const name = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
+    return name || user.email;
   }
 }

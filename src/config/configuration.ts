@@ -123,6 +123,7 @@ export default () => ({
   ai: {
     enabled: toBoolean(process.env.AI_ENABLED),
     defaultProvider: process.env.AI_DEFAULT_PROVIDER ?? 'openai',
+    defaultModel: process.env.AI_DEFAULT_MODEL ?? process.env.OPENAI_MODEL,
     openAiApiKey: process.env.OPENAI_API_KEY,
     anthropicApiKey: process.env.ANTHROPIC_API_KEY,
     requestTimeoutMs: toNumber(process.env.AI_REQUEST_TIMEOUT_MS, 60000)

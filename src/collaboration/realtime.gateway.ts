@@ -45,6 +45,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   private server?: Server;
 
   private readonly logger = new Logger(RealtimeGateway.name);
+  private readonly presence = new Map<string, { count: number; tenantId: string; userId: string }>();
 
   constructor(
     private readonly jwtService: JwtService,
@@ -59,9 +60,14 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
       client.data.user = user;
       await client.join(`tenant:${user.tenantId}`);
       await client.join(`user:${user.id}`);
+      this.markOnline(user);
       client.emit('connection.ready', {
         userId: user.id,
         tenantId: user.tenantId
+      });
+      client.emit('presence.snapshot', {
+        tenantId: user.tenantId,
+        onlineUserIds: this.onlineUserIds(user.tenantId)
       });
     } catch (error) {
       client.emit('connection.error', {
@@ -74,6 +80,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   handleDisconnect(client: Socket) {
     const user = client.data.user as AuthenticatedUser | undefined;
     if (user) {
+      this.markOffline(user);
       this.logger.debug(`Realtime disconnected userId=${user.id}`);
     }
   }
@@ -324,6 +331,42 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
         }`
       );
     }
+  }
+
+  private markOnline(user: AuthenticatedUser) {
+    const key = `${user.tenantId}:${user.id}`;
+    const current = this.presence.get(key);
+    if (current) {
+      current.count += 1;
+      return;
+    }
+
+    this.presence.set(key, { count: 1, tenantId: user.tenantId, userId: user.id });
+    this.safeEmit(`tenant:${user.tenantId}`, 'presence.online', {
+      tenantId: user.tenantId,
+      userId: user.id
+    });
+  }
+
+  private markOffline(user: AuthenticatedUser) {
+    const key = `${user.tenantId}:${user.id}`;
+    const current = this.presence.get(key);
+    if (!current) return;
+
+    current.count -= 1;
+    if (current.count > 0) return;
+
+    this.presence.delete(key);
+    this.safeEmit(`tenant:${user.tenantId}`, 'presence.offline', {
+      tenantId: user.tenantId,
+      userId: user.id
+    });
+  }
+
+  private onlineUserIds(tenantId: string) {
+    return [...this.presence.values()]
+      .filter((entry) => entry.tenantId === tenantId)
+      .map((entry) => entry.userId);
   }
 
   private safeEmitMany(rooms: string[], event: string, payload: Record<string, unknown>) {

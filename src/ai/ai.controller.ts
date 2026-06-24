@@ -28,6 +28,14 @@ import { AiService } from './ai.service';
 import { AgentQueryDto } from './dto/agent-query.dto';
 import { AiActionQueryDto } from './dto/ai-action-query.dto';
 import { UpdateAiSettingsDto } from './dto/ai-settings.dto';
+import { BoardAiApplyActionsDto } from './dto/board-ai-action.dto';
+import { BoardAiDto } from './dto/board-ai.dto';
+import {
+  BoardAiActionPlanResponseDto,
+  BoardAiApplyResponseDto,
+  BoardAiRiskScanResponseDto,
+  BoardAiSummaryResponseDto
+} from './dto/board-ai-response.dto';
 import { AiUsageQueryDto } from './dto/ai-usage-query.dto';
 import { ChatDto } from './dto/chat.dto';
 import { ConversationQueryDto } from './dto/conversation-query.dto';
@@ -305,6 +313,66 @@ export class AiController {
     @Req() request: Request
   ) {
     return this.aiService.projectSummary(user, dto, this.getRequestMeta(request));
+  }
+
+  @Post('board-summary')
+  @Version('1')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('read:ai')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Generate an AI board summary from project board data' })
+  @ApiCreatedResponse({ type: BoardAiSummaryResponseDto })
+  boardSummary(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: BoardAiDto,
+    @Req() request: Request
+  ): Promise<BoardAiSummaryResponseDto> {
+    return this.aiService.boardSummary(user, dto, this.getRequestMeta(request));
+  }
+
+  @Post('board-risk-scan')
+  @Version('1')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('read:ai')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Detect AI board risk signals from project board data' })
+  @ApiCreatedResponse({ type: BoardAiRiskScanResponseDto })
+  boardRiskScan(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: BoardAiDto,
+    @Req() request: Request
+  ): Promise<BoardAiRiskScanResponseDto> {
+    return this.aiService.boardRiskScan(user, dto, this.getRequestMeta(request));
+  }
+
+  @Post('board-actions')
+  @Version('1')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('read:ai')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Generate reviewable AI action proposals for a board' })
+  @ApiCreatedResponse({ type: BoardAiActionPlanResponseDto })
+  boardActionPlan(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: BoardAiDto,
+    @Req() request: Request
+  ): Promise<BoardAiActionPlanResponseDto> {
+    return this.aiService.boardActionPlan(user, dto, this.getRequestMeta(request));
+  }
+
+  @Post('board-actions/apply')
+  @Version('1')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('read:ai')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Apply selected pending AI board actions after user review' })
+  @ApiCreatedResponse({ type: BoardAiApplyResponseDto })
+  applyBoardActions(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: BoardAiApplyActionsDto,
+    @Req() request: Request
+  ): Promise<BoardAiApplyResponseDto> {
+    return this.aiService.applyBoardActions(user, dto, this.getRequestMeta(request));
   }
 
   @Post('sprint-planning')

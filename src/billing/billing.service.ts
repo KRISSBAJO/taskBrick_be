@@ -21,6 +21,7 @@ import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { PrismaService } from '../prisma/prisma.service';
 import { BillingEventQueryDto } from './dto/billing-event-query.dto';
 import { ChangePlanDto } from './dto/change-plan.dto';
+import { CheckoutConfirmDto } from './dto/checkout-confirm.dto';
 import { CheckoutDto } from './dto/checkout.dto';
 import { CreateFeatureDto } from './dto/create-feature.dto';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
@@ -85,6 +86,20 @@ interface StripeObject {
   };
 }
 
+interface StripeCheckoutSessionObject {
+  id?: string;
+  amount_subtotal?: number;
+  amount_total?: number;
+  client_reference_id?: string;
+  currency?: string;
+  customer?: string | Record<string, unknown>;
+  invoice?: string | StripeObject;
+  metadata?: Record<string, unknown>;
+  payment_status?: string;
+  status?: string;
+  subscription?: string | StripeObject;
+}
+
 interface PaystackObject {
   id?: number | string;
   reference?: string;
@@ -111,6 +126,20 @@ interface PaystackObject {
   authorization?: {
     authorization_code?: string;
   };
+}
+
+type ProrationBehavior = NonNullable<ChangePlanDto['prorationBehavior']>;
+type PlanChangeTiming = NonNullable<ChangePlanDto['changeTiming']>;
+
+interface PlanChangeProration {
+  behavior: ProrationBehavior;
+  currency: string;
+  creditAmount: number;
+  invoiceAmount: number;
+  oldPeriodAmount: number;
+  newPeriodAmount: number;
+  remainingRatio: number;
+  unsupportedCurrencyChange: boolean;
 }
 
 const featureSummarySelect = {
@@ -971,6 +1000,38 @@ export class BillingService {
     }
 
     const now = new Date();
+    const changeTiming: PlanChangeTiming = dto.changeTiming ?? 'immediate';
+    const prorationBehavior: ProrationBehavior =
+      dto.prorationBehavior ?? (dto.prorate === false ? 'none' : 'create_proration_invoice');
+
+    if (changeTiming === 'period_end') {
+      const subscription = await this.prisma.subscription.update({
+        where: { id: subscriptionId },
+        data: {
+          metadata: this.mergeJson(before.metadata, {
+            pendingPlanChange: {
+              planId: dto.planId,
+              requestedAt: now.toISOString(),
+              effectiveAt: before.currentPeriodEnd?.toISOString() ?? null,
+              prorationBehavior
+            }
+          })
+        },
+        select: subscriptionSelect
+      });
+
+      await this.recordAudit(user, 'billing.subscription_schedule_plan_change', 'Subscription', subscription.id, {
+        planId: before.planId
+      }, {
+        planId: dto.planId,
+        effectiveAt: before.currentPeriodEnd?.toISOString() ?? null,
+        prorationBehavior
+      }, meta);
+
+      return subscription;
+    }
+
+    const proration = this.calculatePlanChangeProration(before, plan, now, prorationBehavior);
     const subscription = await this.prisma.subscription.update({
       where: { id: subscriptionId },
       data: {
@@ -983,18 +1044,25 @@ export class BillingService {
         metadata: this.mergeJson(before.metadata, {
           lastPlanChangeAt: now.toISOString(),
           previousPlanId: before.planId,
-          prorate: dto.prorate
+          changeTiming,
+          prorate: dto.prorate,
+          prorationBehavior,
+          proration
         })
       },
       select: subscriptionSelect
     });
+
+    if (proration.invoiceAmount > 0) {
+      await this.createPlanChangeAdjustmentInvoice(subscription, before.planId, plan.id, proration, now);
+    }
 
     await this.updateTenantStatusFromBilling(subscription.tenantId, subscription.status);
     await this.recordAudit(user, 'billing.subscription_change_plan', 'Subscription', subscription.id, {
       planId: before.planId
     }, {
       planId: subscription.planId,
-      prorate: dto.prorate
+      proration: { ...proration }
     }, meta);
 
     return subscription;
@@ -1506,6 +1574,33 @@ export class BillingService {
       seatCount,
       message: 'Billing provider is not enabled; returning a local checkout continuation URL'
     };
+  }
+
+  async confirmCheckoutSession(
+    user: AuthenticatedUser,
+    dto: CheckoutConfirmDto,
+    meta: RequestMeta
+  ) {
+    const provider =
+      dto.provider ??
+      (dto.sessionId ? 'stripe' : dto.reference ? 'paystack' : undefined);
+    if (!provider) {
+      throw new BadRequestException('Checkout provider is required');
+    }
+
+    const result =
+      provider === 'stripe'
+        ? await this.confirmStripeCheckoutSession(user, dto.sessionId)
+        : await this.confirmPaystackCheckoutSession(user, dto.reference);
+
+    await this.recordAudit(user, 'billing.checkout_confirm', 'Tenant', user.tenantId, undefined, {
+      provider,
+      status: result.status,
+      subscriptionId: result.subscription?.id ?? null,
+      invoiceId: result.invoice?.id ?? null
+    }, meta);
+
+    return result;
   }
 
   async createPortalSession(user: AuthenticatedUser, dto: PortalDto) {
@@ -2129,9 +2224,13 @@ export class BillingService {
     if (!plan) return false;
 
     const now = new Date();
+    const seatCount = this.numberValue(metadata.seatCount) ?? 1;
+    if (!this.paystackPaymentMatchesPlan(object, metadata, plan, seatCount)) {
+      return false;
+    }
+
     const paidAt = this.dateValue(object.paid_at) ?? this.dateValue(object.created_at) ?? now;
     const periodEnd = this.addPlanInterval(paidAt, plan.interval);
-    const seatCount = this.numberValue(metadata.seatCount) ?? 1;
     const providerCustomerId =
       this.stringValue(object.customer?.customer_code) ??
       this.stringValue(object.customer?.id);
@@ -2328,6 +2427,8 @@ export class BillingService {
         select: {
           id: true,
           interval: true,
+          price: true,
+          currency: true,
           providerPriceId: true
         }
       });
@@ -2340,6 +2441,8 @@ export class BillingService {
       select: {
         id: true,
         interval: true,
+        price: true,
+        currency: true,
         providerPriceId: true
       }
     });
@@ -2426,6 +2529,331 @@ export class BillingService {
     }
   }
 
+  private async confirmStripeCheckoutSession(user: AuthenticatedUser, sessionId?: string) {
+    this.assertCanManageBilling(user);
+    if (!sessionId) throw new BadRequestException('Stripe checkout session id is required');
+
+    const session = await this.retrieveStripeCheckoutSession(sessionId);
+    const metadata = this.asRecord(session.metadata);
+    const sessionTenantId =
+      this.stringValue(metadata.tenantId) ??
+      this.stringValue(session.client_reference_id);
+    if (sessionTenantId && sessionTenantId !== user.tenantId) {
+      throw new ForbiddenException('Checkout session does not belong to the current tenant');
+    }
+
+    const paymentStatus = session.payment_status ?? 'unpaid';
+    const complete = session.status === 'complete' && ['paid', 'no_payment_required'].includes(paymentStatus);
+    if (!complete) {
+      await this.recordCheckoutBillingEvent('stripe', `checkout:${sessionId}`, user.tenantId, 'checkout.session.pending', session, BillingEventStatus.RECEIVED);
+      return this.checkoutConfirmationResult(
+        user,
+        'stripe',
+        paymentStatus === 'unpaid' ? 'pending' : paymentStatus,
+        'Stripe checkout has not completed payment yet.'
+      );
+    }
+
+    let subscriptionObject = this.asRecord(session.subscription) as StripeObject;
+    const providerSubscriptionId =
+      this.stringValue(session.subscription) ??
+      this.stringValue(subscriptionObject.id);
+    if (providerSubscriptionId && !subscriptionObject.id) {
+      subscriptionObject = await this.retrieveStripeSubscription(providerSubscriptionId);
+    }
+
+    const subscriptionMetadata = this.asRecord(subscriptionObject.metadata);
+    const planId =
+      this.stringValue(metadata.planId) ??
+      this.stringValue(subscriptionMetadata.planId);
+    const priceId = subscriptionObject.items?.data?.[0]?.price?.id;
+    const plan = planId
+      ? await this.prisma.plan.findUnique({ where: { id: planId }, select: { id: true, interval: true } })
+      : priceId
+        ? await this.prisma.plan.findFirst({ where: { providerPriceId: priceId }, select: { id: true, interval: true } })
+        : null;
+    if (!plan) {
+      throw new BadRequestException('Checkout plan could not be resolved');
+    }
+
+    const now = new Date();
+    const status = this.mapStripeBillingStatus(subscriptionObject.status ?? 'active');
+    const periodStart =
+      this.fromUnixSeconds(subscriptionObject.current_period_start) ??
+      now;
+    const periodEnd =
+      this.fromUnixSeconds(subscriptionObject.current_period_end) ??
+      this.addPlanInterval(periodStart, plan.interval);
+    const seatCount =
+      subscriptionObject.quantity ??
+      subscriptionObject.items?.data?.[0]?.quantity ??
+      this.numberValue(subscriptionMetadata.seatCount) ??
+      this.numberValue(metadata.seatCount) ??
+      1;
+    const customerObject = this.asRecord(session.customer);
+    const providerCustomerId =
+      this.stringValue(session.customer) ??
+      this.stringValue(customerObject.id) ??
+      this.stringValue(subscriptionObject.customer);
+
+    const subscription = await this.prisma.subscription.upsert({
+      where: { tenantId: user.tenantId },
+      update: {
+        planId: plan.id,
+        status,
+        provider: 'stripe',
+        providerCustomerId,
+        providerSubscriptionId,
+        seatCount,
+        cancelAtPeriodEnd: subscriptionObject.cancel_at_period_end ?? false,
+        trialEndsAt: this.fromUnixSeconds(subscriptionObject.trial_end),
+        currentPeriodStart: periodStart,
+        currentPeriodEnd: periodEnd,
+        canceledAt: status === BillingStatus.CANCELLED ? this.fromUnixSeconds(subscriptionObject.canceled_at) ?? now : null,
+        metadata: this.toJson({
+          stripeCheckoutSessionId: session.id,
+          stripePaymentStatus: paymentStatus,
+          stripeStatus: subscriptionObject.status,
+          priceId,
+          confirmedAt: now.toISOString()
+        })
+      },
+      create: {
+        tenantId: user.tenantId,
+        planId: plan.id,
+        status,
+        provider: 'stripe',
+        providerCustomerId,
+        providerSubscriptionId,
+        seatCount,
+        cancelAtPeriodEnd: subscriptionObject.cancel_at_period_end ?? false,
+        trialEndsAt: this.fromUnixSeconds(subscriptionObject.trial_end),
+        currentPeriodStart: periodStart,
+        currentPeriodEnd: periodEnd,
+        canceledAt: status === BillingStatus.CANCELLED ? this.fromUnixSeconds(subscriptionObject.canceled_at) ?? now : undefined,
+        metadata: this.toJson({
+          stripeCheckoutSessionId: session.id,
+          stripePaymentStatus: paymentStatus,
+          stripeStatus: subscriptionObject.status,
+          priceId,
+          confirmedAt: now.toISOString()
+        })
+      },
+      select: subscriptionSelect
+    });
+
+    const invoiceObject = this.asRecord(session.invoice) as StripeObject;
+    const providerInvoiceId =
+      this.stringValue(session.invoice) ??
+      this.stringValue(invoiceObject.id) ??
+      `checkout:${sessionId}`;
+    await this.prisma.invoice.upsert({
+      where: {
+        provider_providerInvoiceId: {
+          provider: 'stripe',
+          providerInvoiceId
+        }
+      },
+      update: {
+        tenantId: user.tenantId,
+        subscriptionId: subscription.id,
+        amount: this.centsToMoney(session.amount_total ?? invoiceObject.amount_paid ?? invoiceObject.total ?? 0),
+        subtotal: this.centsToMoney(session.amount_subtotal ?? invoiceObject.subtotal ?? 0),
+        total: this.centsToMoney(session.amount_total ?? invoiceObject.total ?? 0),
+        currency: this.normalizeCurrency(session.currency ?? invoiceObject.currency),
+        status: 'paid',
+        periodStart,
+        periodEnd,
+        paidAt: now,
+        hostedInvoiceUrl: invoiceObject.hosted_invoice_url,
+        invoicePdfUrl: invoiceObject.invoice_pdf,
+        metadata: this.toJson({
+          stripeCheckoutSessionId: session.id,
+          stripePaymentStatus: paymentStatus,
+          confirmedFromReturn: true
+        })
+      },
+      create: {
+        tenantId: user.tenantId,
+        subscriptionId: subscription.id,
+        provider: 'stripe',
+        providerInvoiceId,
+        number: invoiceObject.number ?? providerInvoiceId,
+        amount: this.centsToMoney(session.amount_total ?? invoiceObject.amount_paid ?? invoiceObject.total ?? 0),
+        subtotal: this.centsToMoney(session.amount_subtotal ?? invoiceObject.subtotal ?? 0),
+        total: this.centsToMoney(session.amount_total ?? invoiceObject.total ?? 0),
+        currency: this.normalizeCurrency(session.currency ?? invoiceObject.currency),
+        status: 'paid',
+        periodStart,
+        periodEnd,
+        paidAt: now,
+        hostedInvoiceUrl: invoiceObject.hosted_invoice_url,
+        invoicePdfUrl: invoiceObject.invoice_pdf,
+        metadata: this.toJson({
+          stripeCheckoutSessionId: session.id,
+          stripePaymentStatus: paymentStatus,
+          confirmedFromReturn: true
+        })
+      }
+    });
+
+    await this.updateTenantStatusFromBilling(user.tenantId, status);
+    await this.recordCheckoutBillingEvent('stripe', `checkout:${sessionId}`, user.tenantId, 'checkout.session.confirmed', session, BillingEventStatus.PROCESSED);
+    return this.checkoutConfirmationResult(user, 'stripe', 'paid', 'Stripe checkout confirmed.');
+  }
+
+  private async confirmPaystackCheckoutSession(user: AuthenticatedUser, reference?: string) {
+    this.assertCanManageBilling(user);
+    if (!reference) throw new BadRequestException('Paystack transaction reference is required');
+
+    const object = await this.verifyPaystackTransaction(reference);
+    const metadataTenantId = this.stringValue(this.paystackMetadata(object).tenantId);
+    if (metadataTenantId && metadataTenantId !== user.tenantId) {
+      throw new ForbiddenException('Paystack transaction does not belong to the current tenant');
+    }
+
+    if (object.status !== 'success') {
+      await this.recordCheckoutBillingEvent('paystack', `verify:${reference}`, user.tenantId, 'charge.pending', object, BillingEventStatus.RECEIVED);
+      return this.checkoutConfirmationResult(
+        user,
+        'paystack',
+        object.status ?? 'pending',
+        'Paystack transaction is not successful yet.'
+      );
+    }
+
+    const processed = await this.applyPaystackChargeSuccess(object, user.tenantId);
+    if (!processed) throw new BadRequestException('Paystack transaction could not be applied to a plan');
+
+    await this.recordCheckoutBillingEvent('paystack', `verify:${reference}`, user.tenantId, 'charge.verified', object, BillingEventStatus.PROCESSED);
+    return this.checkoutConfirmationResult(user, 'paystack', 'paid', 'Paystack payment confirmed.');
+  }
+
+  private async checkoutConfirmationResult(
+    user: AuthenticatedUser,
+    provider: 'stripe' | 'paystack',
+    status: string,
+    message: string
+  ) {
+    const [subscription, invoice, account] = await Promise.all([
+      this.prisma.subscription.findUnique({
+        where: { tenantId: user.tenantId },
+        select: subscriptionSelect
+      }),
+      this.prisma.invoice.findFirst({
+        where: { tenantId: user.tenantId, provider },
+        orderBy: [{ paidAt: 'desc' }, { createdAt: 'desc' }],
+        select: invoiceSelect
+      }),
+      this.accountStatus(user)
+    ]);
+
+    return {
+      provider,
+      status,
+      message,
+      subscription,
+      invoice,
+      account
+    };
+  }
+
+  private async recordCheckoutBillingEvent(
+    provider: 'stripe' | 'paystack',
+    eventId: string,
+    tenantId: string,
+    type: string,
+    payload: unknown,
+    status: BillingEventStatus
+  ) {
+    await this.prisma.billingEvent.upsert({
+      where: {
+        provider_eventId: {
+          provider,
+          eventId
+        }
+      },
+      update: {
+        tenantId,
+        type,
+        status,
+        payload: this.toJson(payload),
+        processedAt: new Date(),
+        error: null
+      },
+      create: {
+        tenantId,
+        provider,
+        eventId,
+        type,
+        status,
+        payload: this.toJson(payload),
+        processedAt: new Date()
+      }
+    });
+  }
+
+  private async retrieveStripeCheckoutSession(sessionId: string) {
+    const secretKey = this.configService.get<string>('billing.stripeSecretKey');
+    if (!secretKey) throw new BadRequestException('Stripe is not configured');
+
+    const params = new URLSearchParams();
+    params.append('expand[]', 'subscription');
+    params.append('expand[]', 'invoice');
+    const response = await fetch(`https://api.stripe.com/v1/checkout/sessions/${encodeURIComponent(sessionId)}?${params}`, {
+      headers: {
+        Authorization: `Bearer ${secretKey}`
+      }
+    });
+    const body = (await response.json()) as StripeCheckoutSessionObject & Record<string, unknown>;
+    if (!response.ok) {
+      throw new BadRequestException({
+        message: 'Stripe checkout session could not be verified',
+        stripe: body
+      });
+    }
+    return body;
+  }
+
+  private async retrieveStripeSubscription(subscriptionId: string) {
+    const secretKey = this.configService.get<string>('billing.stripeSecretKey');
+    if (!secretKey) throw new BadRequestException('Stripe is not configured');
+
+    const response = await fetch(`https://api.stripe.com/v1/subscriptions/${encodeURIComponent(subscriptionId)}`, {
+      headers: {
+        Authorization: `Bearer ${secretKey}`
+      }
+    });
+    const body = (await response.json()) as StripeObject & Record<string, unknown>;
+    if (!response.ok) {
+      throw new BadRequestException({
+        message: 'Stripe subscription could not be verified',
+        stripe: body
+      });
+    }
+    return body;
+  }
+
+  private async verifyPaystackTransaction(reference: string) {
+    const secretKey = this.configService.get<string>('billing.paystackSecretKey');
+    if (!secretKey) throw new BadRequestException('Paystack is not configured');
+
+    const response = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
+      headers: {
+        Authorization: `Bearer ${secretKey}`
+      }
+    });
+    const body = (await response.json()) as Record<string, unknown>;
+    const data = this.asRecord(body.data) as PaystackObject;
+    if (!response.ok || body.status === false) {
+      throw new BadRequestException({
+        message: 'Paystack transaction could not be verified',
+        paystack: body
+      });
+    }
+    return data;
+  }
+
   private async createStripeCheckoutSession(
     user: AuthenticatedUser,
     plan: Prisma.PlanGetPayload<{ select: typeof planSelect }>,
@@ -2436,15 +2864,27 @@ export class BillingService {
     const secretKey = this.configService.get<string>('billing.stripeSecretKey');
     if (!secretKey) throw new BadRequestException('Stripe is not configured');
 
+    const successRedirectUrl = this.appendCheckoutReturnParams(successUrl, {
+      checkout: 'success',
+      provider: 'stripe',
+      session_id: '{CHECKOUT_SESSION_ID}'
+    });
+    const cancelRedirectUrl = this.appendCheckoutReturnParams(cancelUrl, {
+      checkout: 'cancelled',
+      provider: 'stripe'
+    });
+
     const params = new URLSearchParams();
     params.set('mode', 'subscription');
-    params.set('success_url', successUrl);
-    params.set('cancel_url', cancelUrl);
+    params.set('success_url', successRedirectUrl);
+    params.set('cancel_url', cancelRedirectUrl);
     params.set('client_reference_id', user.tenantId);
     params.set('metadata[tenantId]', user.tenantId);
     params.set('metadata[planId]', plan.id);
+    params.set('metadata[seatCount]', `${seatCount}`);
     params.set('subscription_data[metadata][tenantId]', user.tenantId);
     params.set('subscription_data[metadata][planId]', plan.id);
+    params.set('subscription_data[metadata][seatCount]', `${seatCount}`);
 
     if (plan.providerPriceId) {
       params.set('line_items[0][price]', plan.providerPriceId);
@@ -2478,7 +2918,10 @@ export class BillingService {
       url: body.url,
       expiresAt: body.expires_at,
       planId: plan.id,
-      seatCount
+      seatCount,
+      currency: plan.currency,
+      successUrl: successRedirectUrl,
+      cancelUrl: cancelRedirectUrl
     };
   }
 
@@ -2492,9 +2935,24 @@ export class BillingService {
     const secretKey = this.configService.get<string>('billing.paystackSecretKey');
     if (!secretKey) throw new BadRequestException('Paystack is not configured');
 
-    const callbackUrl =
-      this.configService.get<string>('billing.paystackCallbackUrl') ??
-      successUrl;
+    const reference = `tb_${randomUUID().replace(/-/g, '')}`;
+    const callbackBaseUrl =
+      successUrl.trim().length > 0
+        ? successUrl
+        : this.configService.get<string>('billing.paystackCallbackUrl') ?? cancelUrl;
+    const callbackUrl = this.appendCheckoutReturnParams(
+      callbackBaseUrl,
+      {
+        checkout: 'success',
+        provider: 'paystack',
+        reference
+      }
+    );
+    const cancelRedirectUrl = this.appendCheckoutReturnParams(cancelUrl, {
+      checkout: 'cancelled',
+      provider: 'paystack',
+      reference
+    });
     const amount = this.moneyToSubunit(Number(plan.price) * seatCount, plan.currency);
     if (amount <= 0) {
       throw new BadRequestException('Paystack checkout requires a paid plan amount');
@@ -2504,15 +2962,19 @@ export class BillingService {
       email: user.email,
       amount,
       currency: this.normalizeCurrency(plan.currency),
+      reference,
       callback_url: callbackUrl,
       metadata: {
         tenantId: user.tenantId,
         planId: plan.id,
         planSlug: plan.slug,
         seatCount,
+        reference,
+        expectedAmount: amount,
+        expectedCurrency: this.normalizeCurrency(plan.currency),
         provider: 'paystack',
         successUrl,
-        cancelUrl
+        cancelUrl: cancelRedirectUrl
       }
     };
     if (plan.providerPriceId) {
@@ -2544,7 +3006,11 @@ export class BillingService {
       url: data.authorization_url,
       planId: plan.id,
       seatCount,
-      currency: plan.currency
+      currency: plan.currency,
+      amount,
+      callbackUrl,
+      successUrl: callbackUrl,
+      cancelUrl: cancelRedirectUrl
     };
   }
 
@@ -2605,6 +3071,89 @@ export class BillingService {
     return status ?? 'open';
   }
 
+  private calculatePlanChangeProration(
+    subscription: Prisma.SubscriptionGetPayload<{ select: typeof subscriptionSelect }>,
+    nextPlan: Prisma.PlanGetPayload<{ select: typeof planSelect }>,
+    now: Date,
+    behavior: ProrationBehavior
+  ): PlanChangeProration {
+    const oldCurrency = this.normalizeCurrency(subscription.plan.currency);
+    const nextCurrency = this.normalizeCurrency(nextPlan.currency);
+    const oldPeriodAmount = this.roundMoney(Number(subscription.plan.price) * subscription.seatCount);
+    const newPeriodAmount = this.roundMoney(Number(nextPlan.price) * subscription.seatCount);
+
+    if (behavior === 'none' || oldCurrency !== nextCurrency) {
+      return {
+        behavior,
+        currency: nextCurrency,
+        creditAmount: 0,
+        invoiceAmount: 0,
+        oldPeriodAmount,
+        newPeriodAmount,
+        remainingRatio: 0,
+        unsupportedCurrencyChange: oldCurrency !== nextCurrency
+      };
+    }
+
+    const periodStart = subscription.currentPeriodStart?.getTime();
+    const periodEnd = subscription.currentPeriodEnd?.getTime();
+    const current = now.getTime();
+    const remainingRatio =
+      periodStart && periodEnd && periodEnd > periodStart && periodEnd > current
+        ? Math.max(0, Math.min(1, (periodEnd - current) / (periodEnd - periodStart)))
+        : 0;
+    const netChange = this.roundMoney((newPeriodAmount - oldPeriodAmount) * remainingRatio);
+
+    return {
+      behavior,
+      currency: nextCurrency,
+      creditAmount: netChange < 0 ? Math.abs(netChange) : 0,
+      invoiceAmount: behavior === 'create_proration_invoice' && netChange > 0 ? netChange : 0,
+      oldPeriodAmount,
+      newPeriodAmount,
+      remainingRatio,
+      unsupportedCurrencyChange: false
+    };
+  }
+
+  private async createPlanChangeAdjustmentInvoice(
+    subscription: Prisma.SubscriptionGetPayload<{ select: typeof subscriptionSelect }>,
+    previousPlanId: string,
+    nextPlanId: string,
+    proration: PlanChangeProration,
+    now: Date
+  ) {
+    const providerInvoiceId = `plan-change:${subscription.id}:${now.getTime()}`;
+    await this.prisma.invoice.create({
+      data: {
+        tenantId: subscription.tenantId,
+        subscriptionId: subscription.id,
+        provider: 'manual',
+        providerInvoiceId,
+        number: `ADJ-${now.getTime()}`,
+        amount: proration.invoiceAmount,
+        subtotal: proration.invoiceAmount,
+        total: proration.invoiceAmount,
+        currency: proration.currency,
+        status: 'open',
+        periodStart: now,
+        periodEnd: subscription.currentPeriodEnd,
+        dueDate: new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000),
+        metadata: this.toJson({
+          type: 'plan_change_proration',
+          previousPlanId,
+          nextPlanId,
+          creditAmount: proration.creditAmount,
+          remainingRatio: proration.remainingRatio
+        })
+      }
+    });
+  }
+
+  private roundMoney(value: number) {
+    return Number(value.toFixed(2));
+  }
+
   private addPlanInterval(start: Date, interval: string) {
     const end = new Date(start);
     switch (interval) {
@@ -2637,6 +3186,21 @@ export class BillingService {
 
   private centsToMoney(value: number) {
     return Number((value / 100).toFixed(2));
+  }
+
+  private appendCheckoutReturnParams(url: string, params: Record<string, string>) {
+    try {
+      const parsed = new URL(url);
+      for (const [key, value] of Object.entries(params)) {
+        parsed.searchParams.set(key, value);
+      }
+      return parsed.toString().replace(/%7BCHECKOUT_SESSION_ID%7D/g, '{CHECKOUT_SESSION_ID}');
+    } catch {
+      const query = new URLSearchParams(params)
+        .toString()
+        .replace(/%7BCHECKOUT_SESSION_ID%7D/g, '{CHECKOUT_SESSION_ID}');
+      return `${url}${url.includes('?') ? '&' : '?'}${query}`;
+    }
   }
 
   private moneyToSubunit(value: number, currency?: string) {
@@ -2719,6 +3283,27 @@ export class BillingService {
       return Number.isFinite(parsed) ? parsed : undefined;
     }
     return undefined;
+  }
+
+  private paystackPaymentMatchesPlan(
+    object: PaystackObject,
+    metadata: Record<string, unknown>,
+    plan: { price: Prisma.Decimal | number | string; currency: string },
+    seatCount: number
+  ) {
+    const paidAmount = this.numberValue(object.amount);
+    if (!paidAmount || paidAmount <= 0) return false;
+
+    const expectedCurrency = this.normalizeCurrency(
+      this.stringValue(metadata.expectedCurrency) ?? plan.currency
+    );
+    const paidCurrency = this.normalizeCurrency(object.currency ?? expectedCurrency);
+    if (paidCurrency !== expectedCurrency) return false;
+
+    const expectedAmount =
+      this.numberValue(metadata.expectedAmount) ??
+      this.moneyToSubunit(Number(plan.price) * seatCount, plan.currency);
+    return paidAmount === expectedAmount;
   }
 
   private paystackMetadata(object: PaystackObject) {

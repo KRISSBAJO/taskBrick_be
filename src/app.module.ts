@@ -4,6 +4,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { APP_GUARD, APP_INTERCEPTOR } from '@nestjs/core';
 import { AccessControlModule } from './access-control/access-control.module';
+import { AccountModule } from './account/account.module';
 import { AdminModule } from './admin/admin.module';
 import { AgileModule } from './agile/agile.module';
 import { AiModule } from './ai/ai.module';
@@ -61,6 +62,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
     PlatformAdminModule,
     IdentitySecurityModule,
     AuthModule,
+    AccountModule,
     AccessControlModule,
     TenantsModule,
     UsersModule,

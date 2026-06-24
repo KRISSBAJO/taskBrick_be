@@ -11766,6 +11766,172 @@
         ]
       }
     },
+    "/api/v1/account/overview": {
+      "get": {
+        "operationId": "Account_overview",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Account overview with tenant, workspace, security, and notification counts"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get account center overview for the authenticated user",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/v1/account/workspaces": {
+      "get": {
+        "operationId": "Account_workspaces",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "default": 25,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated account workspace list"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List workspaces visible in the account center",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/v1/account/guest-workspaces": {
+      "get": {
+        "operationId": "Account_guestWorkspaces",
+        "parameters": [
+          {
+            "name": "page",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "default": 1,
+              "type": "number"
+            }
+          },
+          {
+            "name": "limit",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "default": 25,
+              "type": "number"
+            }
+          },
+          {
+            "name": "search",
+            "required": false,
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Paginated guest workspace/project memberships"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List invited project spaces for the current account",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/v1/account/help": {
+      "get": {
+        "operationId": "Account_help",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Account help and support metadata"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get account support categories and available support channels",
+        "tags": [
+          "account"
+        ]
+      }
+    },
+    "/api/v1/account/support-requests": {
+      "post": {
+        "operationId": "Account_createSupportRequest",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateSupportRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Support request received"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create an account support request and notify tenant admins",
+        "tags": [
+          "account"
+        ]
+      }
+    },
     "/api/v1/permissions": {
       "get": {
         "operationId": "AccessControl_listPermissions",
@@ -12990,6 +13156,99 @@
           }
         ],
         "summary": "Invite a user and add them to a team atomically",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/teams/{teamId}/members/{userId}/resend-invite": {
+      "post": {
+        "operationId": "Teams_resendMemberInvite",
+        "parameters": [
+          {
+            "name": "teamId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "success": true,
+                    "delivery": "email"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Resend a pending team invitation or notify an active user",
+        "tags": [
+          "teams"
+        ]
+      }
+    },
+    "/api/v1/teams/{teamId}/members/{userId}/invite": {
+      "delete": {
+        "operationId": "Teams_cancelMemberInvitation",
+        "parameters": [
+          {
+            "name": "teamId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "success": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Cancel a pending team invitation",
         "tags": [
           "teams"
         ]
@@ -32413,6 +32672,43 @@
         ]
       }
     },
+    "/api/v1/billing/checkout/confirm": {
+      "post": {
+        "operationId": "Billing_confirmCheckoutSession",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckoutConfirmDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutConfirmResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Confirm a returned billing checkout and reconcile subscription state",
+        "tags": [
+          "billing"
+        ]
+      }
+    },
     "/api/v1/billing/trial": {
       "post": {
         "operationId": "Billing_startTenantTrial",
@@ -34744,6 +35040,154 @@
           }
         ],
         "summary": "Generate an AI project summary from tenant-scoped data",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/ai/board-summary": {
+      "post": {
+        "operationId": "Ai_boardSummary",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoardAiDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoardAiSummaryResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Generate an AI board summary from project board data",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/ai/board-risk-scan": {
+      "post": {
+        "operationId": "Ai_boardRiskScan",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoardAiDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoardAiRiskScanResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Detect AI board risk signals from project board data",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/ai/board-actions": {
+      "post": {
+        "operationId": "Ai_boardActionPlan",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoardAiDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoardAiActionPlanResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Generate reviewable AI action proposals for a board",
+        "tags": [
+          "ai"
+        ]
+      }
+    },
+    "/api/v1/ai/board-actions/apply": {
+      "post": {
+        "operationId": "Ai_applyBoardActions",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BoardAiApplyActionsDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BoardAiApplyResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Apply selected pending AI board actions after user review",
         "tags": [
           "ai"
         ]
@@ -56163,6 +56607,50 @@
           "newPassword"
         ]
       },
+      "CreateSupportRequestDto": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "ACCOUNT",
+              "WORKSPACE",
+              "BILLING",
+              "SECURITY",
+              "TECHNICAL",
+              "FEATURE"
+            ],
+            "example": "WORKSPACE"
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "NORMAL",
+              "HIGH",
+              "URGENT"
+            ],
+            "default": "NORMAL"
+          },
+          "subject": {
+            "type": "string",
+            "example": "Cannot invite a user into the delivery workspace"
+          },
+          "message": {
+            "type": "string",
+            "example": "The invite form returns Unauthorized even though I am the tenant owner."
+          },
+          "sourceUrl": {
+            "type": "string",
+            "example": "/settings?tab=workspace"
+          }
+        },
+        "required": [
+          "category",
+          "subject",
+          "message"
+        ]
+      },
       "CreateRoleDto": {
         "type": "object",
         "properties": {
@@ -61740,6 +62228,23 @@
           "prorate": {
             "type": "object",
             "default": true
+          },
+          "changeTiming": {
+            "type": "string",
+            "enum": [
+              "immediate",
+              "period_end"
+            ],
+            "default": "immediate"
+          },
+          "prorationBehavior": {
+            "type": "string",
+            "enum": [
+              "none",
+              "create_proration_invoice",
+              "credit_next_invoice"
+            ],
+            "default": "create_proration_invoice"
           }
         },
         "required": [
@@ -61866,6 +62371,60 @@
             ]
           }
         }
+      },
+      "CheckoutConfirmDto": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "stripe",
+              "paystack"
+            ]
+          },
+          "sessionId": {
+            "type": "string",
+            "description": "Stripe Checkout Session id returned as session_id."
+          },
+          "reference": {
+            "type": "string",
+            "description": "Paystack transaction reference returned as reference or trxref."
+          }
+        }
+      },
+      "CheckoutConfirmResponseDto": {
+        "type": "object",
+        "properties": {
+          "provider": {
+            "type": "string",
+            "enum": [
+              "stripe",
+              "paystack"
+            ]
+          },
+          "status": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "subscription": {
+            "type": "object",
+            "nullable": true
+          },
+          "invoice": {
+            "type": "object",
+            "nullable": true
+          },
+          "account": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "provider",
+          "status",
+          "message"
+        ]
       },
       "StartTenantTrialDto": {
         "type": "object",
@@ -62477,6 +63036,426 @@
         },
         "required": [
           "projectId"
+        ]
+      },
+      "BoardAiDto": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "agentId": {
+            "type": "string"
+          },
+          "prompt": {
+            "type": "string"
+          },
+          "options": {
+            "type": "object"
+          },
+          "boardId": {
+            "type": "string",
+            "description": "Specific board to analyze. Defaults to the project default board."
+          }
+        },
+        "required": [
+          "projectId"
+        ]
+      },
+      "BoardAiUsageDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "model": {
+            "type": "string"
+          },
+          "totalTokens": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "provider",
+          "model",
+          "totalTokens"
+        ]
+      },
+      "BoardAiSummaryResponseDto": {
+        "type": "object",
+        "properties": {
+          "generated": {
+            "type": "boolean"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "boardId": {
+            "type": "string",
+            "nullable": true
+          },
+          "content": {
+            "type": "string"
+          },
+          "highlights": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "risks": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "recommendedActions": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "usage": {
+            "$ref": "#/components/schemas/BoardAiUsageDto"
+          }
+        },
+        "required": [
+          "generated",
+          "projectId",
+          "content",
+          "highlights",
+          "risks",
+          "recommendedActions",
+          "usage"
+        ]
+      },
+      "BoardAiRiskFindingDto": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": "string"
+          },
+          "severity": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "evidence": {
+            "type": "string"
+          },
+          "taskId": {
+            "type": "string"
+          },
+          "columnId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "type",
+          "severity",
+          "title",
+          "evidence"
+        ]
+      },
+      "BoardAiRiskScanResponseDto": {
+        "type": "object",
+        "properties": {
+          "generated": {
+            "type": "boolean"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "boardId": {
+            "type": "string",
+            "nullable": true
+          },
+          "findings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BoardAiRiskFindingDto"
+            }
+          },
+          "narrative": {
+            "type": "string"
+          },
+          "usage": {
+            "$ref": "#/components/schemas/BoardAiUsageDto"
+          }
+        },
+        "required": [
+          "generated",
+          "projectId",
+          "findings",
+          "narrative",
+          "usage"
+        ]
+      },
+      "BoardAiActionPayloadDto": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "boardId": {
+            "type": "string",
+            "nullable": true
+          },
+          "taskId": {
+            "type": "string"
+          },
+          "boardColumnId": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "BACKLOG",
+              "TODO",
+              "IN_PROGRESS",
+              "REVIEW",
+              "TESTING",
+              "DONE",
+              "CANCELLED"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "URGENT",
+              "CRITICAL"
+            ]
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "TASK",
+              "BUG",
+              "STORY",
+              "EPIC",
+              "FEATURE",
+              "INCIDENT",
+              "APPROVAL",
+              "CHANGE_REQUEST",
+              "MILESTONE"
+            ]
+          },
+          "dueDate": {
+            "type": "string",
+            "nullable": true
+          },
+          "storyPoints": {
+            "type": "number"
+          },
+          "estimateMins": {
+            "type": "number"
+          },
+          "sortOrder": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "projectId"
+        ]
+      },
+      "BoardAiActionProposalDto": {
+        "type": "object",
+        "properties": {
+          "actionId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "BOARD_CREATE_TASK",
+              "BOARD_UPDATE_TASK",
+              "BOARD_MOVE_TASK"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "rationale": {
+            "type": "string"
+          },
+          "impact": {
+            "type": "string"
+          },
+          "riskLevel": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH"
+            ]
+          },
+          "confidence": {
+            "type": "number"
+          },
+          "taskId": {
+            "type": "string"
+          },
+          "taskKey": {
+            "type": "string"
+          },
+          "taskTitle": {
+            "type": "string"
+          },
+          "columnId": {
+            "type": "string"
+          },
+          "columnName": {
+            "type": "string"
+          },
+          "payload": {
+            "$ref": "#/components/schemas/BoardAiActionPayloadDto"
+          }
+        },
+        "required": [
+          "actionId",
+          "type",
+          "title",
+          "rationale",
+          "impact",
+          "riskLevel",
+          "confidence",
+          "payload"
+        ]
+      },
+      "BoardAiActionPlanResponseDto": {
+        "type": "object",
+        "properties": {
+          "generated": {
+            "type": "boolean"
+          },
+          "projectId": {
+            "type": "string"
+          },
+          "boardId": {
+            "type": "string",
+            "nullable": true
+          },
+          "summary": {
+            "type": "string"
+          },
+          "proposals": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BoardAiActionProposalDto"
+            }
+          },
+          "usage": {
+            "$ref": "#/components/schemas/BoardAiUsageDto"
+          }
+        },
+        "required": [
+          "generated",
+          "projectId",
+          "summary",
+          "proposals",
+          "usage"
+        ]
+      },
+      "BoardAiApplyActionsDto": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "boardId": {
+            "type": "string",
+            "description": "Board scope used when the action plan was generated."
+          },
+          "actionIds": {
+            "maxItems": 20,
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        },
+        "required": [
+          "projectId",
+          "actionIds"
+        ]
+      },
+      "BoardAiApplyResultDto": {
+        "type": "object",
+        "properties": {
+          "actionId": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "entityType": {
+            "type": "string"
+          },
+          "entityId": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "actionId",
+          "type",
+          "status"
+        ]
+      },
+      "BoardAiApplyResponseDto": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string"
+          },
+          "boardId": {
+            "type": "string",
+            "nullable": true
+          },
+          "applied": {
+            "type": "number"
+          },
+          "failed": {
+            "type": "number"
+          },
+          "results": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/BoardAiApplyResultDto"
+            }
+          }
+        },
+        "required": [
+          "projectId",
+          "applied",
+          "failed",
+          "results"
         ]
       },
       "KnowledgeSearchDto": {

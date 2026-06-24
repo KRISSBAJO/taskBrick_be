@@ -166,6 +166,48 @@ export class TeamsController {
     return this.teamsService.inviteMember(user, teamId, dto, this.getRequestMeta(request));
   }
 
+  @Post(':teamId/members/:userId/resend-invite')
+  @Version('1')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('manage:teams')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Resend a pending team invitation or notify an active user' })
+  @ApiCreatedResponse({ schema: { example: { success: true, delivery: 'email' } } })
+  resendMemberInvite(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('teamId') teamId: string,
+    @Param('userId') userId: string,
+    @Req() request: Request
+  ) {
+    return this.teamsService.resendMemberInvite(
+      user,
+      teamId,
+      userId,
+      this.getRequestMeta(request)
+    );
+  }
+
+  @Delete(':teamId/members/:userId/invite')
+  @Version('1')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('manage:teams')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cancel a pending team invitation' })
+  @ApiOkResponse({ schema: { example: { success: true } } })
+  cancelMemberInvitation(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('teamId') teamId: string,
+    @Param('userId') userId: string,
+    @Req() request: Request
+  ) {
+    return this.teamsService.cancelMemberInvitation(
+      user,
+      teamId,
+      userId,
+      this.getRequestMeta(request)
+    );
+  }
+
   @Delete(':teamId/members/:userId')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)

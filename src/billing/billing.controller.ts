@@ -29,6 +29,8 @@ import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interfa
 import { BillingService } from './billing.service';
 import { BillingEventQueryDto } from './dto/billing-event-query.dto';
 import { ChangePlanDto } from './dto/change-plan.dto';
+import { CheckoutConfirmDto } from './dto/checkout-confirm.dto';
+import { CheckoutConfirmResponseDto } from './dto/checkout-confirm-response.dto';
 import { CheckoutDto } from './dto/checkout.dto';
 import { CreateFeatureDto } from './dto/create-feature.dto';
 import { CreateInvoiceDto } from './dto/create-invoice.dto';
@@ -529,6 +531,20 @@ export class BillingController {
     @Req() request: Request
   ) {
     return this.billingService.createCheckoutSession(user, dto, this.getRequestMeta(request));
+  }
+
+  @Post('billing/checkout/confirm')
+  @Version('1')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Confirm a returned billing checkout and reconcile subscription state' })
+  @ApiCreatedResponse({ type: CheckoutConfirmResponseDto })
+  confirmCheckoutSession(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: CheckoutConfirmDto,
+    @Req() request: Request
+  ) {
+    return this.billingService.confirmCheckoutSession(user, dto, this.getRequestMeta(request));
   }
 
   @Post('billing/trial')

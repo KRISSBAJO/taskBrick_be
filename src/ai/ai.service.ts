@@ -16,6 +16,7 @@ import {
   TaskType
 } from '@prisma/client';
 import { createHash } from 'crypto';
+import { ProjectAccessPolicyService } from '../access-policy/project-access-policy.service';
 import { AuditService } from '../audit/audit.service';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
@@ -23,7 +24,15 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AgentQueryDto } from './dto/agent-query.dto';
 import { AiActionQueryDto } from './dto/ai-action-query.dto';
 import { UpdateAiSettingsDto } from './dto/ai-settings.dto';
+import { BoardAiApplyActionsDto } from './dto/board-ai-action.dto';
 import { AiUsageQueryDto } from './dto/ai-usage-query.dto';
+import { BoardAiDto } from './dto/board-ai.dto';
+import {
+  BoardAiActionPayloadDto,
+  BoardAiActionRiskLevel,
+  BoardAiActionType,
+  BoardAiApplyResultDto
+} from './dto/board-ai-response.dto';
 import { ChatDto } from './dto/chat.dto';
 import { ConversationQueryDto } from './dto/conversation-query.dto';
 import { CreateAgentDto } from './dto/create-agent.dto';
@@ -48,6 +57,95 @@ interface AiCompletionResult {
   outputTokens: number;
   latencyMs: number;
   metadata?: Record<string, unknown>;
+}
+
+interface BoardAiTask {
+  id: string;
+  key: string;
+  title: string;
+  description: string | null;
+  status: TaskStatus;
+  priority: TaskPriority;
+  dueDate: Date | null;
+  storyPoints: number | null;
+  estimateMins: number | null;
+  sortOrder: number;
+  updatedAt: Date;
+  assignees: Array<{
+    user: {
+      id: string;
+      firstName: string | null;
+      lastName: string | null;
+      email: string;
+    };
+  }>;
+}
+
+interface BoardAiColumn {
+  id: string;
+  name: string;
+  status: TaskStatus | null;
+  wipLimit: number | null;
+  isCollapsed: boolean;
+  sortOrder: number;
+  tasks: BoardAiTask[];
+}
+
+interface BoardAiBoard {
+  id: string;
+  name: string;
+  description: string | null;
+  isDefault: boolean;
+  columns: BoardAiColumn[];
+}
+
+interface BoardAiMetrics {
+  totalTasks: number;
+  doneTasks: number;
+  openTasks: number;
+  overdueTasks: number;
+  criticalTasks: number;
+  unassignedTasks: number;
+  staleInProgressTasks: number;
+  columnsOverWip: number;
+  completionRate: number;
+  storyPoints: number;
+}
+
+interface BoardAiContext {
+  project: Record<string, unknown>;
+  tasks: Array<Record<string, unknown>>;
+  risks: Array<Record<string, unknown>>;
+  budgets: unknown;
+  sprints: unknown;
+  counts: Record<string, unknown>;
+  board: BoardAiBoard | null;
+  boardTasks: BoardAiTask[];
+  boardMetrics: BoardAiMetrics;
+}
+
+interface BoardAiFinding {
+  type: string;
+  severity: string;
+  title: string;
+  evidence: string;
+  taskId?: string;
+  columnId?: string;
+}
+
+interface BoardAiProposalDraft {
+  type: BoardAiActionType;
+  title: string;
+  rationale: string;
+  impact: string;
+  riskLevel: BoardAiActionRiskLevel;
+  confidence: number;
+  taskId?: string;
+  taskKey?: string;
+  taskTitle?: string;
+  columnId?: string;
+  columnName?: string;
+  payload: BoardAiActionPayloadDto;
 }
 
 export interface TenantAiGenerationInput {
@@ -221,7 +319,8 @@ export class AiService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly projectAccessPolicy: ProjectAccessPolicyService
   ) {}
 
   status() {
@@ -807,6 +906,226 @@ export class AiService {
     };
   }
 
+  async boardSummary(user: AuthenticatedUser, dto: BoardAiDto, meta: RequestMeta) {
+    await this.projectAccessPolicy.assertProjectAction(user, dto.projectId, 'viewBoard');
+    const context = await this.getBoardAiContext(user.tenantId, dto.projectId, dto.boardId);
+    const completion = await this.generateTenantContent(user, {
+      agentId: dto.agentId,
+      context: this.toBoardGenerationContext(context),
+      metadata: { boardId: context.board?.id ?? null, projectId: dto.projectId },
+      prompt: dto.prompt ?? [
+        'Create a concise agile board summary for a project owner.',
+        'Cover flow health, delivery pressure, ownership gaps, and the next two actions.',
+        'Do not invent data. Use only the supplied board context.'
+      ].join(' '),
+      requestType: 'board_summary'
+    }, meta);
+    const findings = this.buildBoardRiskFindings(context);
+    await this.recordAudit(user, 'ai.board_summary', 'Project', dto.projectId, undefined, {
+      boardId: context.board?.id ?? null,
+      usageLogId: completion.usage.id
+    }, meta);
+    return {
+      generated: true,
+      projectId: dto.projectId,
+      boardId: context.board?.id ?? null,
+      content: completion.content,
+      highlights: this.buildBoardHighlights(context),
+      risks: findings.slice(0, 4).map((finding) => `${finding.severity}: ${finding.title}`),
+      recommendedActions: this.buildBoardRecommendedActions(context, findings),
+      usage: this.toBoardAiUsage(completion.usage)
+    };
+  }
+
+  async boardRiskScan(user: AuthenticatedUser, dto: BoardAiDto, meta: RequestMeta) {
+    await this.projectAccessPolicy.assertProjectAction(user, dto.projectId, 'viewBoard');
+    const context = await this.getBoardAiContext(user.tenantId, dto.projectId, dto.boardId);
+    const findings = this.buildBoardRiskFindings(context);
+    const completion = await this.generateTenantContent(user, {
+      agentId: dto.agentId,
+      context: this.toBoardGenerationContext(context, { findings }),
+      metadata: { boardId: context.board?.id ?? null, findings: findings.length, projectId: dto.projectId },
+      prompt: dto.prompt ?? [
+        'Review this agile board for delivery risk.',
+        'Prioritize blockers, overdue work, WIP overload, stale in-progress items, and unowned critical tasks.',
+        'Return clear owner-facing guidance without changing any task.'
+      ].join(' '),
+      requestType: 'board_risk_scan'
+    }, meta);
+    await this.recordAudit(user, 'ai.board_risk_scan', 'Project', dto.projectId, undefined, {
+      boardId: context.board?.id ?? null,
+      findings: findings.length,
+      usageLogId: completion.usage.id
+    }, meta);
+    return {
+      generated: true,
+      projectId: dto.projectId,
+      boardId: context.board?.id ?? null,
+      findings,
+      narrative: completion.content,
+      usage: this.toBoardAiUsage(completion.usage)
+    };
+  }
+
+  async boardActionPlan(user: AuthenticatedUser, dto: BoardAiDto, meta: RequestMeta) {
+    await this.projectAccessPolicy.assertProjectAction(user, dto.projectId, 'viewBoard');
+    const context = await this.getBoardAiContext(user.tenantId, dto.projectId, dto.boardId);
+    const findings = this.buildBoardRiskFindings(context);
+    const proposalDrafts = this.buildBoardActionProposals(context, findings);
+    const completion = await this.generateTenantContent(user, {
+      agentId: dto.agentId,
+      context: this.toBoardGenerationContext(context, { findings, proposals: proposalDrafts }),
+      metadata: { boardId: context.board?.id ?? null, proposals: proposalDrafts.length, projectId: dto.projectId },
+      prompt: dto.prompt ?? [
+        'Review these deterministic board action proposals.',
+        'Return concise executive guidance for which actions should be reviewed first.',
+        'Do not imply that any task has already changed.'
+      ].join(' '),
+      requestType: 'board_action_plan'
+    }, meta);
+
+    const actions = await Promise.all(proposalDrafts.map((proposal) =>
+      this.prisma.aiAction.create({
+        data: {
+          tenantId: user.tenantId,
+          requestedById: user.id,
+          type: proposal.type,
+          entityType: proposal.taskId ? 'TASK' : 'PROJECT',
+          entityId: proposal.taskId ?? dto.projectId,
+          input: this.toJson({
+            ...proposal,
+            boardId: context.board?.id ?? null,
+            projectId: dto.projectId
+          })
+        },
+        select: aiActionSelect
+      })
+    ));
+
+    await this.recordAudit(user, 'ai.board_action_plan', 'Project', dto.projectId, undefined, {
+      boardId: context.board?.id ?? null,
+      proposals: actions.length,
+      usageLogId: completion.usage.id
+    }, meta);
+
+    return {
+      generated: true,
+      projectId: dto.projectId,
+      boardId: context.board?.id ?? null,
+      summary: completion.content,
+      proposals: proposalDrafts.map((proposal, index) => ({
+        actionId: actions[index].id,
+        ...proposal
+      })),
+      usage: this.toBoardAiUsage(completion.usage)
+    };
+  }
+
+  async applyBoardActions(user: AuthenticatedUser, dto: BoardAiApplyActionsDto, meta: RequestMeta) {
+    const uniqueActionIds = [...new Set(dto.actionIds)];
+    await this.projectAccessPolicy.assertProjectAction(user, dto.projectId, 'viewBoard');
+    const actions = await this.prisma.aiAction.findMany({
+      where: {
+        id: { in: uniqueActionIds },
+        tenantId: user.tenantId,
+        status: AiActionStatus.PENDING,
+        type: { in: Object.values(BoardAiActionType) }
+      },
+      select: aiActionSelect
+    });
+    const actionsById = new Map(actions.map((action) => [action.id, action]));
+    const results: BoardAiApplyResultDto[] = [];
+
+    for (const actionId of uniqueActionIds) {
+      const action = actionsById.get(actionId);
+      if (!action) {
+        results.push({
+          actionId,
+          type: 'UNKNOWN',
+          status: 'FAILED',
+          error: 'Pending board AI action not found'
+        });
+        continue;
+      }
+      const input = this.asRecord(action.input);
+      const projectId = this.stringValue(input.projectId);
+      const boardId = this.stringValue(input.boardId);
+      const title = this.stringValue(input.title);
+      if (projectId !== dto.projectId || (dto.boardId && boardId && boardId !== dto.boardId)) {
+        results.push({
+          actionId,
+          title,
+          type: action.type,
+          status: 'FAILED',
+          error: 'Action scope does not match this board'
+        });
+        continue;
+      }
+
+      try {
+        const output = await this.executeBoardAction(user, action.type as BoardAiActionType, input, meta);
+        const outputRecord = this.asRecord(output);
+        const entityId = this.stringValue(outputRecord.id) ?? this.stringValue(outputRecord.taskId);
+        const updated = await this.prisma.aiAction.update({
+          where: { id: action.id },
+          data: {
+            completedAt: new Date(),
+            entityId: action.entityId ?? entityId,
+            entityType: action.entityType ?? (entityId ? 'TASK' : 'PROJECT'),
+            error: null,
+            output: this.toJson(output),
+            status: AiActionStatus.COMPLETED
+          },
+          select: aiActionSelect
+        });
+        results.push({
+          actionId: action.id,
+          entityId: updated.entityId ?? undefined,
+          entityType: updated.entityType ?? undefined,
+          message: this.stringValue(outputRecord.message) ?? 'Applied',
+          status: updated.status,
+          title,
+          type: updated.type
+        });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : 'Board AI action failed';
+        await this.prisma.aiAction.update({
+          where: { id: action.id },
+          data: {
+            completedAt: new Date(),
+            error: message,
+            status: AiActionStatus.FAILED
+          },
+          select: { id: true }
+        });
+        results.push({
+          actionId: action.id,
+          error: message,
+          status: AiActionStatus.FAILED,
+          title,
+          type: action.type
+        });
+      }
+    }
+
+    const applied = results.filter((result) => result.status === AiActionStatus.COMPLETED).length;
+    const failed = results.length - applied;
+    await this.recordAudit(user, 'ai.board_actions_apply', 'Project', dto.projectId, undefined, {
+      actionIds: uniqueActionIds,
+      applied,
+      boardId: dto.boardId ?? null,
+      failed
+    }, meta);
+
+    return {
+      projectId: dto.projectId,
+      boardId: dto.boardId ?? null,
+      applied,
+      failed,
+      results
+    };
+  }
+
   async sprintPlanning(user: AuthenticatedUser, dto: ProjectAiDto, meta: RequestMeta) {
     await this.assertAiEnabled(user.tenantId);
     const context = await this.getProjectContext(user.tenantId, dto.projectId);
@@ -1203,7 +1522,7 @@ export class AiService {
   ): Promise<AiCompletionResult> {
     const start = Date.now();
     const provider = this.normalizeProvider(agent.provider || settings.defaultProvider);
-    const model = agent.model || settings.defaultModel;
+    const model = this.resolveRuntimeModel(provider, agent.model || settings.defaultModel);
     const systemPrompt = [
       agent.systemPrompt || 'You are TaskBricks AI. Be concise, factual, and mark generated content clearly.',
       'Never claim access to data outside the tenant-scoped context provided.',
@@ -1335,6 +1654,610 @@ export class AiService {
     return lines.join('\n');
   }
 
+  private async getBoardAiContext(tenantId: string, projectId: string, boardId?: string): Promise<BoardAiContext> {
+    const context = await this.getProjectContext(tenantId, projectId);
+    const board = await this.prisma.board.findFirst({
+      where: {
+        tenantId,
+        projectId,
+        ...(boardId ? { id: boardId } : {})
+      },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        isDefault: true,
+        columns: {
+          orderBy: [{ sortOrder: 'asc' }],
+          select: {
+            id: true,
+            name: true,
+            status: true,
+            wipLimit: true,
+            isCollapsed: true,
+            sortOrder: true,
+            tasks: {
+              where: {
+                tenantId,
+                projectId,
+                archivedAt: null,
+                deletedAt: null
+              },
+              orderBy: [{ sortOrder: 'asc' }, { updatedAt: 'desc' }],
+              select: {
+                id: true,
+                key: true,
+                title: true,
+                description: true,
+                status: true,
+                priority: true,
+                dueDate: true,
+                storyPoints: true,
+                estimateMins: true,
+                sortOrder: true,
+                updatedAt: true,
+                assignees: {
+                  select: {
+                    user: {
+                      select: {
+                        id: true,
+                        firstName: true,
+                        lastName: true,
+                        email: true
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }]
+    });
+    if (boardId && !board) throw new NotFoundException('Board not found');
+    const boardTasks = board?.columns.flatMap((column) => column.tasks) ?? [];
+    return {
+      ...context,
+      board,
+      boardTasks,
+      boardMetrics: this.buildBoardMetrics(boardTasks, board?.columns ?? [])
+    };
+  }
+
+  private buildBoardMetrics(tasks: BoardAiTask[], columns: BoardAiColumn[]): BoardAiMetrics {
+    const openTasks = tasks.filter((task) => this.isOpenTaskStatus(task.status));
+    const doneTasks = tasks.filter((task) => task.status === TaskStatus.DONE);
+    const now = new Date();
+    const staleCutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const overdueTasks = openTasks.filter((task) => task.dueDate && task.dueDate < now);
+    const criticalTasks = openTasks.filter((task) => this.isCriticalOrUrgent(task.priority));
+    const unassignedTasks = openTasks.filter((task) => task.assignees.length === 0);
+    const staleInProgressTasks = openTasks.filter((task) =>
+      task.status === TaskStatus.IN_PROGRESS && task.updatedAt < staleCutoff
+    );
+    const columnsOverWip = columns.filter((column) =>
+      column.wipLimit !== null
+      && column.wipLimit >= 0
+      && column.tasks.filter((task) => this.isOpenTaskStatus(task.status)).length > column.wipLimit
+    ).length;
+    return {
+      totalTasks: tasks.length,
+      doneTasks: doneTasks.length,
+      openTasks: openTasks.length,
+      overdueTasks: overdueTasks.length,
+      criticalTasks: criticalTasks.length,
+      unassignedTasks: unassignedTasks.length,
+      staleInProgressTasks: staleInProgressTasks.length,
+      columnsOverWip,
+      completionRate: tasks.length ? Math.round((doneTasks.length / tasks.length) * 100) : 0,
+      storyPoints: tasks.reduce((sum, task) => sum + (task.storyPoints ?? 0), 0)
+    };
+  }
+
+  private buildBoardHighlights(context: BoardAiContext) {
+    const metrics = context.boardMetrics;
+    const boardName = context.board?.name ?? 'Project board';
+    return [
+      `${boardName} is ${metrics.completionRate}% complete across ${metrics.totalTasks} tasks.`,
+      `${metrics.openTasks} tasks remain open, including ${metrics.criticalTasks} urgent or critical items.`,
+      `${metrics.storyPoints} story points are represented on the visible board.`,
+      metrics.columnsOverWip
+        ? `${metrics.columnsOverWip} columns are above WIP limit.`
+        : 'No board column is above its WIP limit.'
+    ];
+  }
+
+  private toBoardGenerationContext(context: BoardAiContext, extras: Record<string, unknown> = {}): Record<string, unknown> {
+    return {
+      board: context.board,
+      boardMetrics: context.boardMetrics,
+      boardTasks: context.boardTasks,
+      budgets: context.budgets,
+      counts: context.counts,
+      project: context.project,
+      risks: context.risks,
+      sprints: context.sprints,
+      tasks: context.tasks,
+      ...extras
+    };
+  }
+
+  private isOpenTaskStatus(status: TaskStatus) {
+    return status !== TaskStatus.DONE && status !== TaskStatus.CANCELLED;
+  }
+
+  private isCriticalOrUrgent(priority: TaskPriority) {
+    return priority === TaskPriority.CRITICAL || priority === TaskPriority.URGENT;
+  }
+
+  private buildBoardRiskFindings(context: BoardAiContext): BoardAiFinding[] {
+    const findings: BoardAiFinding[] = [];
+    const now = new Date();
+    const staleCutoff = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    const openStatuses = new Set<TaskStatus>([TaskStatus.BACKLOG, TaskStatus.TODO, TaskStatus.IN_PROGRESS, TaskStatus.REVIEW, TaskStatus.TESTING]);
+    for (const column of context.board?.columns ?? []) {
+      const openColumnTasks = column.tasks.filter((task) => openStatuses.has(task.status));
+      if (column.wipLimit !== null && column.wipLimit >= 0 && openColumnTasks.length > column.wipLimit) {
+        findings.push({
+          columnId: column.id,
+          evidence: `${openColumnTasks.length} open tasks exceed WIP limit ${column.wipLimit}.`,
+          severity: 'HIGH',
+          title: `${column.name} is over WIP limit`,
+          type: 'WIP_LIMIT'
+        });
+      }
+      for (const task of openColumnTasks) {
+        if (task.dueDate && task.dueDate < now) {
+          findings.push({
+            columnId: column.id,
+            evidence: `Due date passed on ${task.dueDate.toISOString().slice(0, 10)}.`,
+            severity: task.priority === TaskPriority.CRITICAL ? 'CRITICAL' : 'HIGH',
+            taskId: task.id,
+            title: task.title,
+            type: 'OVERDUE_TASK'
+          });
+        }
+        if (this.isCriticalOrUrgent(task.priority) && task.assignees.length === 0) {
+          findings.push({
+            columnId: column.id,
+            evidence: `${task.priority.toLowerCase()} priority task has no assignee.`,
+            severity: task.priority,
+            taskId: task.id,
+            title: task.title,
+            type: 'UNOWNED_HIGH_PRIORITY'
+          });
+        }
+        if (task.status === TaskStatus.IN_PROGRESS && task.updatedAt < staleCutoff) {
+          findings.push({
+            columnId: column.id,
+            evidence: `No update since ${task.updatedAt.toISOString().slice(0, 10)}.`,
+            severity: task.priority === TaskPriority.LOW ? 'MEDIUM' : 'HIGH',
+            taskId: task.id,
+            title: task.title,
+            type: 'STALE_IN_PROGRESS'
+          });
+        }
+        if (/block|blocked|stuck|delay|risk/i.test(`${task.title} ${task.description ?? ''}`)) {
+          findings.push({
+            columnId: column.id,
+            evidence: 'Task text contains blocking or delay language.',
+            severity: this.isCriticalOrUrgent(task.priority) ? 'HIGH' : 'MEDIUM',
+            taskId: task.id,
+            title: task.title,
+            type: 'BLOCKING_LANGUAGE'
+          });
+        }
+      }
+    }
+    return findings.slice(0, 30);
+  }
+
+  private buildBoardRecommendedActions(context: BoardAiContext, findings: BoardAiFinding[]) {
+    const actions: string[] = [];
+    if (findings.some((finding) => finding.type === 'OVERDUE_TASK')) {
+      actions.push('Review overdue work and reset dates or ownership before the next standup.');
+    }
+    if (findings.some((finding) => finding.type === 'WIP_LIMIT')) {
+      actions.push('Reduce WIP by moving only the highest-value work forward this week.');
+    }
+    if (context.boardMetrics.unassignedTasks > 0) {
+      actions.push('Assign owners to open work before adding more tasks to the board.');
+    }
+    if (findings.some((finding) => finding.type === 'STALE_IN_PROGRESS')) {
+      actions.push('Ask owners to update stale in-progress tasks or move them back to Todo.');
+    }
+    if (!actions.length) {
+      actions.push('Keep the current board flow, then review scope and owners during the next planning session.');
+    }
+    return actions.slice(0, 4);
+  }
+
+  private toBoardAiUsage(usage: Prisma.AiUsageLogGetPayload<{ select: typeof aiUsageSelect }>) {
+    return {
+      id: usage.id,
+      provider: usage.provider,
+      model: usage.model,
+      totalTokens: usage.totalTokens
+    };
+  }
+
+  private buildBoardActionProposals(context: BoardAiContext, findings: BoardAiFinding[]): BoardAiProposalDraft[] {
+    const proposals: BoardAiProposalDraft[] = [];
+    const projectId = this.stringValue(this.asRecord(context.project).id);
+    if (!projectId) return proposals;
+    const boardId = context.board?.id ?? null;
+    const todoColumn = this.preferredBoardColumn(context, TaskStatus.TODO);
+    const reviewColumn = this.preferredBoardColumn(context, TaskStatus.REVIEW);
+    const nextDueDate = this.futureDateString(3);
+
+    for (const finding of findings) {
+      if (proposals.length >= 8) break;
+      const task = finding.taskId ? context.boardTasks.find((candidate) => candidate.id === finding.taskId) : undefined;
+      const column = finding.columnId
+        ? context.board?.columns.find((candidate) => candidate.id === finding.columnId)
+        : undefined;
+
+      if (finding.type === 'OVERDUE_TASK' && task) {
+        proposals.push({
+          confidence: 0.86,
+          impact: 'Refreshes schedule visibility and escalates overdue work before the next standup.',
+          payload: {
+            boardId,
+            dueDate: nextDueDate,
+            priority: this.raisePriority(task.priority, TaskPriority.HIGH),
+            projectId,
+            taskId: task.id
+          },
+          rationale: finding.evidence,
+          riskLevel: BoardAiActionRiskLevel.MEDIUM,
+          taskId: task.id,
+          taskKey: task.key,
+          taskTitle: task.title,
+          title: `Reset due date for ${task.key}`,
+          type: BoardAiActionType.UPDATE_TASK
+        });
+        continue;
+      }
+
+      if (finding.type === 'STALE_IN_PROGRESS' && task && reviewColumn) {
+        proposals.push({
+          columnId: reviewColumn.id,
+          columnName: reviewColumn.name,
+          confidence: 0.74,
+          impact: 'Moves stale work into a review lane so the team can verify whether it is still active.',
+          payload: {
+            boardColumnId: reviewColumn.id,
+            boardId,
+            projectId,
+            sortOrder: reviewColumn.tasks.length,
+            status: reviewColumn.status ?? TaskStatus.REVIEW,
+            taskId: task.id
+          },
+          rationale: finding.evidence,
+          riskLevel: BoardAiActionRiskLevel.HIGH,
+          taskId: task.id,
+          taskKey: task.key,
+          taskTitle: task.title,
+          title: `Move stale item ${task.key} to review`,
+          type: BoardAiActionType.MOVE_TASK
+        });
+        continue;
+      }
+
+      if ((finding.type === 'UNOWNED_HIGH_PRIORITY' || finding.type === 'BLOCKING_LANGUAGE') && task) {
+        proposals.push({
+          confidence: 0.8,
+          impact: 'Creates a visible follow-up task without silently assigning ownership.',
+          payload: {
+            boardColumnId: todoColumn?.id ?? null,
+            boardId,
+            description: `AI-generated follow-up for ${task.key}: ${finding.evidence}`,
+            priority: this.raisePriority(task.priority, TaskPriority.HIGH),
+            projectId,
+            status: todoColumn?.status ?? TaskStatus.TODO,
+            title: `Resolve ${task.key}: ${this.truncateForTitle(task.title)}`,
+            type: TaskType.TASK
+          },
+          rationale: finding.evidence,
+          riskLevel: BoardAiActionRiskLevel.LOW,
+          taskId: task.id,
+          taskKey: task.key,
+          taskTitle: task.title,
+          title: `Create follow-up for ${task.key}`,
+          type: BoardAiActionType.CREATE_TASK
+        });
+        continue;
+      }
+
+      if (finding.type === 'WIP_LIMIT' && column) {
+        proposals.push({
+          columnId: column.id,
+          columnName: column.name,
+          confidence: 0.78,
+          impact: 'Adds a triage task so the overload is tracked without moving work automatically.',
+          payload: {
+            boardColumnId: todoColumn?.id ?? null,
+            boardId,
+            description: `AI-generated WIP triage action for ${column.name}: ${finding.evidence}`,
+            priority: TaskPriority.HIGH,
+            projectId,
+            status: todoColumn?.status ?? TaskStatus.TODO,
+            title: `Triage WIP overload in ${this.truncateForTitle(column.name)}`,
+            type: TaskType.TASK
+          },
+          rationale: finding.evidence,
+          riskLevel: BoardAiActionRiskLevel.LOW,
+          title: `Create WIP triage task`,
+          type: BoardAiActionType.CREATE_TASK
+        });
+      }
+    }
+
+    if (!proposals.length) {
+      proposals.push({
+        confidence: 0.7,
+        impact: 'Creates a low-risk board hygiene reminder for the next planning cycle.',
+        payload: {
+          boardColumnId: todoColumn?.id ?? null,
+          boardId,
+          description: 'AI-generated reminder to review board flow, stale items, due dates, and WIP limits.',
+          priority: TaskPriority.MEDIUM,
+          projectId,
+          status: todoColumn?.status ?? TaskStatus.TODO,
+          title: 'Review board health with the team',
+          type: TaskType.TASK
+        },
+        rationale: 'No urgent board risk was detected, but a recurring review keeps the board clean.',
+        riskLevel: BoardAiActionRiskLevel.LOW,
+        title: 'Create board health review task',
+        type: BoardAiActionType.CREATE_TASK
+      });
+    }
+
+    return proposals.slice(0, 8);
+  }
+
+  private preferredBoardColumn(context: BoardAiContext, status: TaskStatus) {
+    return context.board?.columns.find((column) => column.status === status)
+      ?? context.board?.columns.find((column) => column.status && this.isOpenTaskStatus(column.status))
+      ?? context.board?.columns[0]
+      ?? null;
+  }
+
+  private raisePriority(current: TaskPriority, minimum: TaskPriority) {
+    const rank = {
+      [TaskPriority.LOW]: 0,
+      [TaskPriority.MEDIUM]: 1,
+      [TaskPriority.HIGH]: 2,
+      [TaskPriority.URGENT]: 3,
+      [TaskPriority.CRITICAL]: 4
+    };
+    return rank[current] >= rank[minimum] ? current : minimum;
+  }
+
+  private truncateForTitle(value: string) {
+    return value.length > 80 ? `${value.slice(0, 77).trim()}...` : value;
+  }
+
+  private futureDateString(days: number) {
+    const date = new Date();
+    date.setDate(date.getDate() + days);
+    return date.toISOString().slice(0, 10);
+  }
+
+  private async executeBoardAction(
+    user: AuthenticatedUser,
+    actionType: BoardAiActionType,
+    input: Record<string, unknown>,
+    meta: RequestMeta
+  ) {
+    const payload = this.asRecord(input.payload);
+    switch (actionType) {
+      case BoardAiActionType.CREATE_TASK:
+        return this.applyBoardCreateTask(user, payload, meta);
+      case BoardAiActionType.UPDATE_TASK:
+        return this.applyBoardUpdateTask(user, payload, meta);
+      case BoardAiActionType.MOVE_TASK:
+        return this.applyBoardMoveTask(user, payload, meta);
+      default:
+        throw new BadRequestException('Unsupported board AI action');
+    }
+  }
+
+  private async applyBoardCreateTask(user: AuthenticatedUser, payload: Record<string, unknown>, meta: RequestMeta) {
+    const projectId = this.stringValue(payload.projectId);
+    const title = this.stringValue(payload.title);
+    if (!projectId || !title) throw new BadRequestException('Board AI create task requires projectId and title');
+    await this.projectAccessPolicy.assertProjectAction(user, projectId, 'createTasks');
+    const project = await this.prisma.project.findFirst({
+      where: { id: projectId, tenantId: user.tenantId },
+      select: { id: true, key: true }
+    });
+    if (!project) throw new NotFoundException('Project not found');
+    const boardColumnId = this.stringValue(payload.boardColumnId);
+    const column = boardColumnId
+      ? await this.getBoardColumnForProjectOrThrow(user.tenantId, projectId, boardColumnId)
+      : null;
+    const status = this.enumValue(payload.status, TaskStatus) ?? column?.status ?? TaskStatus.TODO;
+    const priority = this.enumValue(payload.priority, TaskPriority) ?? TaskPriority.MEDIUM;
+    const type = this.enumValue(payload.type, TaskType) ?? TaskType.TASK;
+    const taskCount = await this.prisma.task.count({ where: { projectId } });
+    const sortOrder = this.numberValue(payload.sortOrder)
+      ?? (column ? await this.countTasksForColumn(user.tenantId, projectId, column.id) : taskCount);
+    const task = await this.prisma.task.create({
+      data: {
+        boardColumnId: column?.id,
+        completedAt: status === TaskStatus.DONE ? new Date() : undefined,
+        description: this.stringValue(payload.description),
+        dueDate: this.dateValue(payload.dueDate),
+        estimateMins: this.numberValue(payload.estimateMins),
+        key: `${project.key.toUpperCase()}-${taskCount + 1}`,
+        priority,
+        projectId,
+        reporterId: user.id,
+        sortOrder,
+        status,
+        storyPoints: this.numberValue(payload.storyPoints),
+        tenantId: user.tenantId,
+        title,
+        type
+      },
+      select: { id: true, key: true, priority: true, projectId: true, status: true, title: true }
+    });
+    await this.prisma.taskActivity.create({
+      data: {
+        action: 'ai.board_task_create',
+        actorId: user.id,
+        newValue: this.toJson({ boardColumnId: column?.id ?? null, key: task.key, title: task.title }),
+        taskId: task.id
+      }
+    });
+    await this.recordAudit(user, 'ai.board_task_create', 'Task', task.id, undefined, {
+      boardColumnId: column?.id ?? null,
+      key: task.key,
+      projectId
+    }, meta);
+    return { ...task, message: `Created ${task.key}` };
+  }
+
+  private async applyBoardUpdateTask(user: AuthenticatedUser, payload: Record<string, unknown>, meta: RequestMeta) {
+    const taskId = this.stringValue(payload.taskId);
+    if (!taskId) throw new BadRequestException('Board AI update task requires taskId');
+    const task = await this.getTenantTaskForBoardActionOrThrow(user.tenantId, taskId);
+    await this.projectAccessPolicy.assertTaskAction(user, taskId, 'editTasks');
+    const nextStatus = this.enumValue(payload.status, TaskStatus);
+    const nextPriority = this.enumValue(payload.priority, TaskPriority);
+    const hasDueDate = Object.prototype.hasOwnProperty.call(payload, 'dueDate');
+    const data: Prisma.TaskUpdateInput = {
+      completedAt: nextStatus ? this.resolveBoardCompletedAt(task.completedAt, nextStatus) : undefined,
+      dueDate: hasDueDate ? this.dateValue(payload.dueDate) : undefined,
+      priority: nextPriority,
+      status: nextStatus
+    };
+    const updated = await this.prisma.task.update({
+      where: { id: taskId },
+      data,
+      select: { id: true, key: true, priority: true, projectId: true, status: true, title: true, dueDate: true }
+    });
+    await this.prisma.taskActivity.create({
+      data: {
+        action: 'ai.board_task_update',
+        actorId: user.id,
+        oldValue: this.toJson({ dueDate: task.dueDate, priority: task.priority, status: task.status }),
+        newValue: this.toJson({ dueDate: updated.dueDate, priority: updated.priority, status: updated.status }),
+        taskId
+      }
+    });
+    await this.recordAudit(user, 'ai.board_task_update', 'Task', taskId, {
+      dueDate: task.dueDate,
+      priority: task.priority,
+      status: task.status
+    }, {
+      dueDate: updated.dueDate,
+      priority: updated.priority,
+      status: updated.status
+    }, meta);
+    return { ...updated, message: `Updated ${updated.key}` };
+  }
+
+  private async applyBoardMoveTask(user: AuthenticatedUser, payload: Record<string, unknown>, meta: RequestMeta) {
+    const taskId = this.stringValue(payload.taskId);
+    if (!taskId) throw new BadRequestException('Board AI move task requires taskId');
+    const task = await this.getTenantTaskForBoardActionOrThrow(user.tenantId, taskId);
+    await this.projectAccessPolicy.assertTaskAction(user, taskId, 'moveTasks');
+    const boardColumnId = this.stringValue(payload.boardColumnId);
+    const column = boardColumnId
+      ? await this.getBoardColumnForProjectOrThrow(user.tenantId, task.projectId, boardColumnId)
+      : null;
+    const nextStatus = this.enumValue(payload.status, TaskStatus) ?? column?.status ?? task.status;
+    const sortOrder = this.numberValue(payload.sortOrder)
+      ?? (column ? await this.countTasksForColumn(user.tenantId, task.projectId, column.id) : task.sortOrder);
+    const updated = await this.prisma.task.update({
+      where: { id: taskId },
+      data: {
+        boardColumnId: column?.id ?? null,
+        completedAt: this.resolveBoardCompletedAt(task.completedAt, nextStatus),
+        sortOrder,
+        status: nextStatus
+      },
+      select: { boardColumnId: true, id: true, key: true, projectId: true, sortOrder: true, status: true, title: true }
+    });
+    await this.prisma.taskActivity.create({
+      data: {
+        action: 'ai.board_task_move',
+        actorId: user.id,
+        oldValue: this.toJson({ boardColumnId: task.boardColumnId, sortOrder: task.sortOrder, status: task.status }),
+        newValue: this.toJson({ boardColumnId: updated.boardColumnId, sortOrder: updated.sortOrder, status: updated.status }),
+        taskId
+      }
+    });
+    await this.recordAudit(user, 'ai.board_task_move', 'Task', taskId, {
+      boardColumnId: task.boardColumnId,
+      sortOrder: task.sortOrder,
+      status: task.status
+    }, {
+      boardColumnId: updated.boardColumnId,
+      sortOrder: updated.sortOrder,
+      status: updated.status
+    }, meta);
+    return { ...updated, message: `Moved ${updated.key}` };
+  }
+
+  private async getTenantTaskForBoardActionOrThrow(tenantId: string, taskId: string) {
+    const task = await this.prisma.task.findFirst({
+      where: { id: taskId, tenantId, archivedAt: null, deletedAt: null },
+      select: {
+        boardColumnId: true,
+        completedAt: true,
+        dueDate: true,
+        id: true,
+        priority: true,
+        projectId: true,
+        sortOrder: true,
+        status: true
+      }
+    });
+    if (!task) throw new NotFoundException('Task not found');
+    return task;
+  }
+
+  private async getBoardColumnForProjectOrThrow(tenantId: string, projectId: string, boardColumnId: string) {
+    const column = await this.prisma.boardColumn.findFirst({
+      where: {
+        id: boardColumnId,
+        board: { projectId, tenantId }
+      },
+      select: { id: true, status: true }
+    });
+    if (!column) throw new NotFoundException('Board column not found');
+    return column;
+  }
+
+  private async countTasksForColumn(tenantId: string, projectId: string, boardColumnId: string) {
+    return this.prisma.task.count({
+      where: {
+        archivedAt: null,
+        boardColumnId,
+        deletedAt: null,
+        projectId,
+        tenantId
+      }
+    });
+  }
+
+  private resolveBoardCompletedAt(current: Date | null, status: TaskStatus) {
+    if (status === TaskStatus.DONE) return current ?? new Date();
+    if (status === TaskStatus.CANCELLED) return current ?? new Date();
+    return null;
+  }
+
+  private dateValue(value: unknown) {
+    if (value === null) return null;
+    const text = this.stringValue(value);
+    return text ? new Date(text) : undefined;
+  }
+
   private async getProjectContext(tenantId: string, projectId: string) {
     const project = await this.prisma.project.findFirst({
       where: { id: projectId, tenantId },
@@ -1431,12 +2354,13 @@ export class AiService {
       select: aiSettingsSelect
     });
     if (existing) return existing;
+    const provider = this.normalizeProvider(this.configService.get<string>('ai.defaultProvider', 'local'));
     return this.prisma.aiTenantSettings.create({
       data: {
         tenantId,
         enabled: this.configService.get<boolean>('ai.enabled', false),
-        defaultProvider: this.normalizeProvider(this.configService.get<string>('ai.defaultProvider', 'local')),
-        defaultModel: 'taskbricks-local',
+        defaultProvider: provider,
+        defaultModel: this.configService.get<string>('ai.defaultModel') ?? this.fallbackModelForProvider(provider),
         allowedProviders: ['local', 'openai', 'anthropic'],
         redactSensitiveData: true
       },
@@ -1532,8 +2456,19 @@ export class AiService {
 
   private resolveModel(provider: string, settings: AiSettingsRecord) {
     if (provider === settings.defaultProvider) return settings.defaultModel;
-    if (provider === 'openai') return 'gpt-4o-mini';
-    if (provider === 'anthropic') return 'claude-3-5-haiku-latest';
+    return this.fallbackModelForProvider(provider);
+  }
+
+  private resolveRuntimeModel(provider: string, model: string) {
+    if (provider !== 'local' && model === 'taskbricks-local') {
+      return this.configService.get<string>('ai.defaultModel') ?? this.fallbackModelForProvider(provider);
+    }
+    return model || this.fallbackModelForProvider(provider);
+  }
+
+  private fallbackModelForProvider(provider: string) {
+    if (provider === 'openai') return this.configService.get<string>('ai.defaultModel') ?? 'gpt-4o-mini';
+    if (provider === 'anthropic') return this.configService.get<string>('ai.defaultModel') ?? 'claude-3-5-haiku-latest';
     return 'taskbricks-local';
   }
 
