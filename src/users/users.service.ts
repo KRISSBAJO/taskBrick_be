@@ -19,6 +19,7 @@ export type BulkInviteStatus = 'CREATED' | 'UPDATED' | 'SKIPPED' | 'FAILED';
 
 export interface BulkInviteResult {
   email: string;
+  deliveryStatus?: string;
   status: BulkInviteStatus;
   userId: string | null;
   message: string;
@@ -158,9 +159,13 @@ export class UsersService {
       userAgent: meta.userAgent
     });
 
-    await this.authService.sendInvitation(invited.id, user.id, meta);
+    const invitation = await this.authService.sendInvitation(invited.id, user.id, meta);
 
-    return this.getTenantUserOrThrow(user.tenantId, invited.id);
+    return {
+      delivery: invitation.delivery?.channel ?? 'email',
+      deliveryStatus: invitation.delivery,
+      user: await this.getTenantUserOrThrow(user.tenantId, invited.id)
+    };
   }
 
   async bulkInviteUsers(
@@ -293,7 +298,13 @@ export class UsersService {
     if (sendInvites) {
       for (const createdUserId of createdUserIds) {
         try {
-          await this.authService.sendInvitation(createdUserId, user.id, meta);
+          const invitation = await this.authService.sendInvitation(createdUserId, user.id, meta);
+          const delivery = invitation.delivery;
+          const result = results.find((item) => item.userId === createdUserId);
+          if (result && delivery?.status && delivery.status !== 'sent') {
+            result.deliveryStatus = delivery.status;
+            result.message = invitation.message;
+          }
         } catch (error) {
           const result = results.find((item) => item.userId === createdUserId);
           if (result) {

@@ -20,6 +20,17 @@ interface RequestMeta {
   userAgent?: string | null;
 }
 
+type TeamInviteDeliveryChannel = 'email' | 'in_app' | 'none';
+type TeamInviteDeliveryStatus = 'sent' | 'skipped' | 'failed';
+type TeamInviteDelivery = {
+  channel: TeamInviteDeliveryChannel;
+  error?: string;
+  message: string;
+  provider?: string;
+  skipped?: boolean;
+  status: TeamInviteDeliveryStatus;
+};
+
 const teamSelect = {
   id: true,
   tenantId: true,
@@ -394,9 +405,20 @@ export class TeamsService {
       userAgent: meta.userAgent
     });
 
-    await this.deliverTeamInvite(user, team, member.userId, invited.status, dto.teamRole, meta);
+    const deliveryStatus = await this.deliverTeamInvite(
+      user,
+      team,
+      member.userId,
+      invited.status,
+      dto.teamRole,
+      meta
+    );
 
-    return member;
+    return {
+      delivery: deliveryStatus.channel,
+      deliveryStatus,
+      member
+    };
   }
 
   async resendMemberInvite(
@@ -412,7 +434,7 @@ export class TeamsService {
       throw new BadRequestException('Only active or pending users can receive team invitations');
     }
 
-    const delivery = await this.deliverTeamInvite(
+    const deliveryStatus = await this.deliverTeamInvite(
       user,
       team,
       member.userId,
@@ -430,13 +452,19 @@ export class TeamsService {
       newValue: {
         teamId,
         userId,
-        delivery
+        delivery: deliveryStatus.channel,
+        deliveryStatus
       },
       ipAddress: meta.ipAddress,
       userAgent: meta.userAgent
     });
 
-    return { success: true, delivery, member };
+    return {
+      success: true,
+      delivery: deliveryStatus.channel,
+      deliveryStatus,
+      member
+    };
   }
 
   async cancelMemberInvitation(
@@ -606,10 +634,19 @@ export class TeamsService {
     targetStatus: UserStatus,
     teamRole: string | undefined,
     meta: RequestMeta
-  ) {
+  ): Promise<TeamInviteDelivery> {
     if (targetStatus === UserStatus.INVITED) {
-      await this.authService.sendInvitation(targetUserId, actor.id, meta);
-      return 'email';
+      const invitation = await this.authService.sendInvitation(targetUserId, actor.id, meta);
+      const delivery = invitation.delivery;
+
+      return {
+        channel: 'email',
+        error: delivery?.error,
+        message: invitation.message,
+        provider: delivery?.provider,
+        skipped: delivery?.skipped,
+        status: delivery?.status ?? 'sent'
+      };
     }
 
     if (targetStatus === UserStatus.ACTIVE) {
@@ -628,10 +665,18 @@ export class TeamsService {
         }
       }, meta);
 
-      return 'in_app';
+      return {
+        channel: 'in_app',
+        message: 'Existing user notified in the app.',
+        status: 'sent'
+      };
     }
 
-    return 'none';
+    return {
+      channel: 'none',
+      message: 'No invite delivery was required for this user state.',
+      status: 'skipped'
+    };
   }
 
   private displayActor(user: AuthenticatedUser) {

@@ -14,7 +14,7 @@ import { AuditService } from '../audit/audit.service';
 import { IdentitySecurityService } from '../identity-security/identity-security.service';
 import { VerifyMfaLoginDto } from '../identity-security/dto/mfa-login.dto';
 import { SsoCallbackDto } from '../identity-security/dto/sso-provider.dto';
-import { MailService } from '../mail/mail.service';
+import { MailDeliveryResult, MailService } from '../mail/mail.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AcceptInviteDto } from './dto/accept-invite.dto';
 import { DEFAULT_PERMISSIONS, DEFAULT_ROLES, permissionKey } from './auth.constants';
@@ -41,6 +41,13 @@ type LifecycleResponse = {
   email?: string;
   tenantSlug?: string;
   requiresEmailVerification?: boolean;
+  delivery?: {
+    channel: 'email';
+    error?: string;
+    provider: string;
+    skipped?: boolean;
+    status: 'sent' | 'skipped' | 'failed';
+  };
   devLink?: string;
 };
 type MfaRequiredResponse = {
@@ -842,6 +849,7 @@ export class AuthService {
     const token = await this.createEmailVerificationToken(user.id, user.tenantId, this.inviteTtlMinutes);
     const inviteUrl = this.authUrl('/accept-invite', token);
     const mail = await this.sendInviteEmail(user.email, user.firstName, user.tenant.name, inviteUrl);
+    const delivery = this.mailDeliverySummary(mail);
 
     await this.auditService.record({
       tenantId: user.tenantId,
@@ -849,7 +857,7 @@ export class AuthService {
       action: 'auth.invite_email_sent',
       entityType: 'User',
       entityId: user.id,
-      newValue: { mailSent: mail.sent },
+      newValue: { delivery, mailSent: mail.sent },
       ipAddress: meta.ipAddress,
       userAgent: meta.userAgent
     });
@@ -860,15 +868,21 @@ export class AuthService {
       severity: SecurityEventSeverity.INFO,
       subjectType: 'User',
       subjectId: user.id,
-      metadata: { email: user.email, mailSent: mail.sent },
+      metadata: { email: user.email, delivery, mailSent: mail.sent },
       meta
     });
 
     return {
       success: true,
-      message: 'Invitation sent.',
+      message:
+        delivery.status === 'sent'
+          ? 'Invitation sent.'
+          : delivery.status === 'skipped'
+            ? 'Invitation created, but email delivery is disabled.'
+            : 'Invitation created, but email delivery failed.',
       email: user.email,
       tenantSlug: user.tenant.slug,
+      delivery,
       devLink: this.developmentLink(inviteUrl)
     };
   }
@@ -1038,6 +1052,16 @@ export class AuthService {
         url: inviteUrl
       })
     });
+  }
+
+  private mailDeliverySummary(mail: MailDeliveryResult): NonNullable<LifecycleResponse['delivery']> {
+    return {
+      channel: 'email',
+      error: mail.error,
+      provider: mail.provider,
+      skipped: mail.skipped,
+      status: mail.sent ? 'sent' : mail.skipped ? 'skipped' : 'failed'
+    };
   }
 
   private authEmailTemplate(input: { title: string; intro: string; ctaLabel: string; url: string }) {

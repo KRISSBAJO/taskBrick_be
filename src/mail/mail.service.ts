@@ -10,6 +10,12 @@ type MailMessage = {
   text: string;
   html?: string;
 };
+export type MailDeliveryResult = {
+  sent: boolean;
+  provider: MailProvider | 'smtp';
+  skipped?: boolean;
+  error?: string;
+};
 
 type SmtpSocket = Socket | TLSSocket;
 
@@ -19,7 +25,7 @@ export class MailService {
 
   constructor(private readonly configService: ConfigService) {}
 
-  async send(message: MailMessage) {
+  async send(message: MailMessage): Promise<MailDeliveryResult> {
     const provider = this.configService.get<MailProvider>('mail.provider', 'none');
     const from = this.configService.get<string>('mail.from') || 'TaskBricks <no-reply@taskbricks.local>';
 
