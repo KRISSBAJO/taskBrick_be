@@ -203,7 +203,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Get the authenticated user profile and permissions' })
   @ApiOkResponse({ description: 'Current authenticated user' })
   me(@CurrentUser() user: AuthenticatedUser) {
-    return user;
+    return this.authService.getMe(user.id);
   }
 
   private getRequestMeta(request: Request) {

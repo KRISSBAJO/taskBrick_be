@@ -68,6 +68,15 @@ const teamMemberSelect = {
       lastName: true,
       avatarUrl: true,
       status: true,
+      internalMailbox: {
+        select: {
+          id: true,
+          address: true,
+          localPart: true,
+          displayName: true,
+          status: true
+        }
+      },
       roles: {
         select: {
           role: {

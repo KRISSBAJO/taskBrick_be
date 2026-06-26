@@ -597,6 +597,18 @@ export const openApiComponentSchemas: Record<string, OpenApiSchema> = {
       "email": {
         "type": "string"
       },
+      "internalEmail": {
+        "nullable": true,
+        "type": "string"
+      },
+      "internalMailbox": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/InternalMailboxIdentity"
+          }
+        ],
+        "nullable": true
+      },
       "firstName": {
         "type": "string"
       },
@@ -3370,6 +3382,33 @@ export const openApiComponentSchemas: Record<string, OpenApiSchema> = {
       "unread",
       "messageCount",
       "recipientCount"
+    ],
+    "type": "object"
+  },
+  "InternalMailboxIdentity": {
+    "properties": {
+      "address": {
+        "type": "string"
+      },
+      "displayName": {
+        "type": "string"
+      },
+      "id": {
+        "type": "string"
+      },
+      "localPart": {
+        "type": "string"
+      },
+      "status": {
+        "type": "string"
+      }
+    },
+    "required": [
+      "id",
+      "address",
+      "localPart",
+      "displayName",
+      "status"
     ],
     "type": "object"
   },
@@ -17357,6 +17396,18 @@ export const openApiComponentSchemas: Record<string, OpenApiSchema> = {
       "email": {
         "type": "string"
       },
+      "internalEmail": {
+        "nullable": true,
+        "type": "string"
+      },
+      "internalMailbox": {
+        "allOf": [
+          {
+            "$ref": "#/components/schemas/InternalMailboxIdentity"
+          }
+        ],
+        "nullable": true
+      },
       "firstName": {
         "type": "string"
       },
@@ -19459,6 +19510,11 @@ export const openApiOperationResponseSchemas: Record<string, Partial<Record<Open
   "/api/v1/internal-mail/mailboxes/{mailboxId}/aliases": {
     "post": {
       "$ref": "#/components/schemas/InternalMailboxAlias"
+    }
+  },
+  "/api/v1/internal-mail/mailboxes/{mailboxId}/regenerate-address": {
+    "post": {
+      "$ref": "#/components/schemas/InternalMailbox"
     }
   },
   "/api/v1/internal-mail/mailboxes/{mailboxId}/members": {

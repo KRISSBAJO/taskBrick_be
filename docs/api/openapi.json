@@ -20395,6 +20395,52 @@
         ]
       }
     },
+    "/api/v1/internal-mail/mailboxes/{mailboxId}/regenerate-address": {
+      "post": {
+        "operationId": "InternalMail_regenerateMailboxAddress",
+        "parameters": [
+          {
+            "name": "mailboxId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RegenerateInternalMailboxAddressDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Regenerated mailbox identity",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/InternalMailbox"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Regenerate a tenant internal mailbox primary address and keep the previous address as an alias",
+        "tags": [
+          "internal-mail"
+        ]
+      }
+    },
     "/api/v1/internal-mail/mailboxes/{mailboxId}/members": {
       "post": {
         "operationId": "InternalMail_upsertMailboxMember",
@@ -20778,6 +20824,35 @@
           }
         ],
         "summary": "Reply to an internal mail thread",
+        "tags": [
+          "internal-mail"
+        ]
+      }
+    },
+    "/api/v1/internal-mail/threads/{threadId}/send-draft": {
+      "post": {
+        "operationId": "InternalMail_sendDraft",
+        "parameters": [
+          {
+            "name": "threadId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Draft sent as an internal mail thread"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Send an existing internal mail draft",
         "tags": [
           "internal-mail"
         ]
@@ -38100,6 +38175,18 @@
           "email": {
             "type": "string"
           },
+          "internalEmail": {
+            "nullable": true,
+            "type": "string"
+          },
+          "internalMailbox": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InternalMailboxIdentity"
+              }
+            ],
+            "nullable": true
+          },
           "firstName": {
             "type": "string"
           },
@@ -40873,6 +40960,33 @@
           "unread",
           "messageCount",
           "recipientCount"
+        ],
+        "type": "object"
+      },
+      "InternalMailboxIdentity": {
+        "properties": {
+          "address": {
+            "type": "string"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "localPart": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "address",
+          "localPart",
+          "displayName",
+          "status"
         ],
         "type": "object"
       },
@@ -54860,6 +54974,18 @@
           "email": {
             "type": "string"
           },
+          "internalEmail": {
+            "nullable": true,
+            "type": "string"
+          },
+          "internalMailbox": {
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/InternalMailboxIdentity"
+              }
+            ],
+            "nullable": true
+          },
           "firstName": {
             "type": "string"
           },
@@ -56439,6 +56565,14 @@
           },
           "email": {
             "type": "string"
+          },
+          "internalEmail": {
+            "type": "object",
+            "nullable": true
+          },
+          "internalMailbox": {
+            "type": "object",
+            "nullable": true
           },
           "firstName": {
             "type": "string"
@@ -59005,6 +59139,20 @@
           },
           "isPrimary": {
             "type": "boolean"
+          }
+        }
+      },
+      "RegenerateInternalMailboxAddressDto": {
+        "type": "object",
+        "properties": {
+          "localPart": {
+            "type": "string",
+            "description": "Optional local part to use for the regenerated primary internal address."
+          },
+          "keepPreviousAsAlias": {
+            "type": "boolean",
+            "default": true,
+            "description": "Keep the previous primary address as an active alias so old references still resolve."
           }
         }
       },

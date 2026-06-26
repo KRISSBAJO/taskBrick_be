@@ -4,6 +4,7 @@ import { randomUUID } from 'node:crypto';
 import { AuditService } from '../audit/audit.service';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { InternalMailService } from '../internal-mail/internal-mail.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PrismaService } from '../prisma/prisma.service';
 import {
@@ -63,10 +64,12 @@ export class AccountService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
-    private readonly notificationsService: NotificationsService
+    private readonly notificationsService: NotificationsService,
+    private readonly internalMailService: InternalMailService
   ) {}
 
   async overview(user: AuthenticatedUser) {
+    const internalMailbox = await this.internalMailService.ensureUserMailboxIdentity(user.tenantId, user.id, user.id);
     const [
       tenant,
       workspaceCount,
@@ -151,7 +154,7 @@ export class AccountService {
     ]);
 
     return {
-      user: this.currentUser(user),
+      user: this.currentUser({ ...user, internalEmail: internalMailbox.address, internalMailbox }),
       tenant,
       access: this.accessSummary(user),
       counts: {
@@ -434,6 +437,8 @@ export class AccountService {
       id: user.id,
       tenantId: user.tenantId,
       email: user.email,
+      internalEmail: user.internalEmail ?? user.internalMailbox?.address ?? null,
+      internalMailbox: user.internalMailbox ?? null,
       firstName: user.firstName,
       lastName: user.lastName,
       avatarUrl: user.avatarUrl ?? null,

@@ -12,6 +12,7 @@ import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes, randomUUID } from 'crypto';
 import { AuditService } from '../audit/audit.service';
 import { IdentitySecurityService } from '../identity-security/identity-security.service';
+import { InternalMailService } from '../internal-mail/internal-mail.service';
 import { VerifyMfaLoginDto } from '../identity-security/dto/mfa-login.dto';
 import { SsoCallbackDto } from '../identity-security/dto/sso-provider.dto';
 import { MailDeliveryResult, MailService } from '../mail/mail.service';
@@ -75,6 +76,7 @@ export class AuthService {
     private readonly configService: ConfigService,
     private readonly auditService: AuditService,
     private readonly identitySecurityService: IdentitySecurityService,
+    private readonly internalMailService: InternalMailService,
     private readonly mailService: MailService
   ) {}
 
@@ -889,9 +891,12 @@ export class AuthService {
 
   async getMe(userId: string): Promise<AuthenticatedUser> {
     const user = await this.loadAuthenticatedUser(userId);
+    const internalMailbox = await this.internalMailService.ensureUserMailboxIdentity(user.tenantId, user.id, user.id);
 
     return {
       ...user,
+      internalEmail: internalMailbox.address,
+      internalMailbox,
       sessionId: ''
     };
   }
@@ -1123,6 +1128,12 @@ export class AuthService {
     options: SessionCreateOptions = {}
   ): Promise<AuthResponseDto> {
     const user = await this.loadAuthenticatedUser(userId);
+    const internalMailbox = await this.internalMailService.ensureUserMailboxIdentity(tenantId, userId, userId);
+    const userWithMailbox = {
+      ...user,
+      internalEmail: internalMailbox.address,
+      internalMailbox
+    };
     const accessToken = await this.signToken({
       sub: userId,
       tenantId,
@@ -1155,7 +1166,7 @@ export class AuthService {
     return {
       accessToken,
       refreshToken,
-      user,
+      user: userWithMailbox,
       trustedDeviceToken: options.trustedDeviceToken
     };
   }

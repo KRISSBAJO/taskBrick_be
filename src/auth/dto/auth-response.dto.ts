@@ -10,6 +10,18 @@ class AuthUserDto {
   @ApiProperty()
   email!: string;
 
+  @ApiPropertyOptional({ nullable: true })
+  internalEmail?: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  internalMailbox?: {
+    id: string;
+    address: string;
+    localPart: string;
+    displayName: string;
+    status: string;
+  } | null;
+
   @ApiProperty()
   firstName!: string;
 

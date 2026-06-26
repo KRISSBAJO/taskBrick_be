@@ -26,6 +26,7 @@ import { InternalMailQueryDto } from './dto/internal-mail-query.dto';
 import {
   CreateInternalMailboxAliasDto,
   CreateInternalMailboxDto,
+  RegenerateInternalMailboxAddressDto,
   UpdateInternalMailboxDto,
   UpsertInternalMailboxMemberDto,
 } from './dto/manage-internal-mailbox.dto';
@@ -180,6 +181,7 @@ const threadSelect = {
 
 type InternalMailThreadRecord = Prisma.InternalMailThreadGetPayload<{ select: typeof threadSelect }>;
 type InternalMailboxRecord = Prisma.InternalMailboxGetPayload<{ select: typeof mailboxSelect }>;
+type UserMailboxTarget = { id: string; email: string; firstName: string; lastName: string };
 
 @Injectable()
 export class InternalMailService {
@@ -286,6 +288,40 @@ export class InternalMailService {
     ]);
 
     return this.paginate(mailboxes.map((mailbox) => this.serializeMailbox(mailbox)), total, query);
+  }
+
+  async ensureUserMailboxIdentity(tenantId: string, userId: string, actorId?: string) {
+    const tenant = await this.getTenantAddressContext(tenantId);
+    const target = await this.prisma.user.findFirst({
+      where: {
+        id: userId,
+        tenantId,
+        status: { not: UserStatus.DEACTIVATED },
+      },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+      },
+    });
+
+    if (!target) {
+      throw new NotFoundException('User not found');
+    }
+
+    await this.ensureUserMailbox(tenantId, tenant.slug, target, actorId);
+
+    const mailbox = await this.prisma.internalMailbox.findUnique({
+      where: { userId },
+      select: mailboxSelect,
+    });
+
+    if (!mailbox) {
+      throw new NotFoundException('Internal mailbox not found');
+    }
+
+    return this.serializeMailbox(mailbox);
   }
 
   async createMailbox(user: AuthenticatedUser, dto: CreateInternalMailboxDto, meta: RequestMeta) {
@@ -421,6 +457,91 @@ export class InternalMailService {
 
     await this.audit(user, 'internal_mail.mailbox_alias_create', mailboxId, undefined, alias as Prisma.InputJsonValue, meta);
     return alias;
+  }
+
+  async regenerateAddress(
+    user: AuthenticatedUser,
+    mailboxId: string,
+    dto: RegenerateInternalMailboxAddressDto,
+    meta: RequestMeta,
+  ) {
+    this.assertMailboxAdministrator(user);
+    const current = await this.getMailboxOrThrow(user.tenantId, mailboxId);
+    const tenant = await this.getTenantAddressContext(user.tenantId);
+    const baseLocalPart = dto.localPart
+      ? this.normalizeLocalPart(dto.localPart)
+      : this.mailboxBaseLocalPart(current);
+    const localPart = await this.availableLocalPart(user.tenantId, baseLocalPart, mailboxId);
+    const address = this.mailboxAddress(localPart, tenant.slug);
+    const keepPreviousAsAlias = dto.keepPreviousAsAlias !== false;
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      if (keepPreviousAsAlias) {
+        await tx.internalMailboxAlias.upsert({
+          where: { tenantId_address: { tenantId: user.tenantId, address: current.address } },
+          update: {
+            localPart: current.localPart,
+            status: InternalMailboxStatus.ACTIVE,
+            isPrimary: false,
+          },
+          create: {
+            tenantId: user.tenantId,
+            mailboxId,
+            localPart: current.localPart,
+            address: current.address,
+            status: InternalMailboxStatus.ACTIVE,
+            isPrimary: false,
+            createdById: user.id,
+          },
+        });
+      }
+
+      await tx.internalMailboxAlias.updateMany({
+        where: { tenantId: user.tenantId, mailboxId },
+        data: { isPrimary: false },
+      });
+
+      const next = await tx.internalMailbox.update({
+        where: { id: mailboxId },
+        data: {
+          localPart,
+          address,
+          updatedById: user.id,
+        },
+        select: mailboxSelect,
+      });
+
+      await tx.internalMailboxAlias.upsert({
+        where: { tenantId_address: { tenantId: user.tenantId, address } },
+        update: {
+          localPart,
+          status: InternalMailboxStatus.ACTIVE,
+          isPrimary: true,
+        },
+        create: {
+          tenantId: user.tenantId,
+          mailboxId,
+          localPart,
+          address,
+          status: InternalMailboxStatus.ACTIVE,
+          isPrimary: true,
+          createdById: user.id,
+        },
+      });
+
+      return next;
+    });
+
+    await this.audit(
+      user,
+      'internal_mail.mailbox_address_regenerate',
+      mailboxId,
+      this.auditMailbox(current),
+      this.auditMailbox(updated),
+      meta,
+    );
+
+    return this.serializeMailbox(updated);
   }
 
   async addMailboxMember(user: AuthenticatedUser, mailboxId: string, dto: UpsertInternalMailboxMemberDto, meta: RequestMeta) {
@@ -563,16 +684,16 @@ export class InternalMailService {
           attachments: this.toJson(dto.attachments),
           isDraft: saveAsDraft,
           sentAt: saveAsDraft ? null : now,
-          recipients: saveAsDraft
-            ? undefined
-            : {
+          recipients: recipients.length
+            ? {
                 create: recipients.map((recipient) => ({
                   tenantId: user.tenantId,
                   userId: recipient.userId,
                   kind: recipient.kind,
-                  deliveredAt: now,
+                  deliveredAt: saveAsDraft ? null : now,
                 })),
-              },
+              }
+            : undefined,
         },
         select: { id: true },
       });
@@ -607,6 +728,141 @@ export class InternalMailService {
     }
 
     return this.getThread(user, created.threadId);
+  }
+
+  async sendDraft(user: AuthenticatedUser, threadId: string, meta: RequestMeta) {
+    const participant = await this.getParticipantOrThrow(user, threadId);
+
+    if (participant.folder !== InternalMailFolder.DRAFTS) {
+      throw new BadRequestException('Only draft mail can be sent from drafts');
+    }
+
+    const thread = await this.prisma.internalMailThread.findFirst({
+      where: { id: threadId, tenantId: user.tenantId },
+      select: {
+        id: true,
+        subject: true,
+        priority: true,
+        participants: {
+          select: { userId: true },
+        },
+        messages: {
+          where: { isDraft: true },
+          orderBy: [{ createdAt: 'desc' }],
+          take: 1,
+          select: {
+            id: true,
+            subject: true,
+            bodyText: true,
+            priority: true,
+            recipients: {
+              select: {
+                kind: true,
+                userId: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!thread) {
+      throw new NotFoundException('Internal mail thread not found');
+    }
+
+    const draftMessage = thread.messages[0];
+    if (!draftMessage) {
+      throw new BadRequestException('Draft message was already sent or is no longer editable');
+    }
+
+    const recipients = draftMessage.recipients.length
+      ? draftMessage.recipients.map((recipient) => ({ userId: recipient.userId, kind: recipient.kind }))
+      : thread.participants
+          .filter((item) => item.userId !== user.id)
+          .map((item) => ({ userId: item.userId, kind: InternalMailRecipientKind.TO }));
+    const recipientIds = [...new Set(recipients.map((recipient) => recipient.userId))];
+
+    if (!recipientIds.length) {
+      throw new BadRequestException('At least one recipient is required');
+    }
+
+    await this.assertUsersBelongToTenant(user.tenantId, recipientIds);
+    const now = new Date();
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.internalMailMessage.update({
+        where: { id: draftMessage.id },
+        data: {
+          isDraft: false,
+          sentAt: now,
+        },
+      });
+
+      if (draftMessage.recipients.length) {
+        await tx.internalMailRecipient.updateMany({
+          where: { tenantId: user.tenantId, messageId: draftMessage.id },
+          data: { deliveredAt: now },
+        });
+      } else {
+        await tx.internalMailRecipient.createMany({
+          data: recipients.map((recipient) => ({
+            tenantId: user.tenantId,
+            messageId: draftMessage.id,
+            userId: recipient.userId,
+            kind: recipient.kind,
+            deliveredAt: now,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      await tx.internalMailThread.update({
+        where: { id: threadId },
+        data: {
+          lastMessageAt: now,
+          priority: draftMessage.priority,
+        },
+      });
+
+      await tx.internalMailParticipant.update({
+        where: { id: participant.id },
+        data: {
+          archivedAt: null,
+          deletedAt: null,
+          folder: InternalMailFolder.SENT,
+          lastReadMessageId: draftMessage.id,
+          readAt: now,
+          snoozedUntil: null,
+        },
+      });
+
+      for (const recipientId of recipientIds) {
+        await tx.internalMailParticipant.upsert({
+          where: { threadId_userId: { threadId, userId: recipientId } },
+          update: {
+            archivedAt: null,
+            deletedAt: null,
+            folder: InternalMailFolder.INBOX,
+            readAt: null,
+            snoozedUntil: null,
+          },
+          create: {
+            tenantId: user.tenantId,
+            threadId,
+            userId: recipientId,
+            folder: InternalMailFolder.INBOX,
+          },
+        });
+      }
+    });
+
+    await this.audit(user, 'internal_mail.draft_send', threadId, undefined, {
+      messageId: draftMessage.id,
+      recipientCount: recipientIds.length,
+    }, meta);
+    await this.notifyRecipients(user, recipientIds, thread.subject, draftMessage.bodyText, threadId, draftMessage.id, draftMessage.priority, meta);
+
+    return this.getThread(user, threadId);
   }
 
   async reply(user: AuthenticatedUser, threadId: string, dto: ReplyInternalMailDto, meta: RequestMeta) {
@@ -1056,7 +1312,7 @@ export class InternalMailService {
   private async ensureUserMailbox(
     tenantId: string,
     tenantSlug: string,
-    target: { id: string; email: string; firstName: string; lastName: string },
+    target: UserMailboxTarget,
     actorId?: string,
   ) {
     const existing = await this.prisma.internalMailbox.findUnique({
@@ -1099,11 +1355,11 @@ export class InternalMailService {
     return mailbox;
   }
 
-  private async availableLocalPart(tenantId: string, base: string) {
+  private async availableLocalPart(tenantId: string, base: string, excludeMailboxId?: string) {
     let candidate = base;
     let suffix = 1;
 
-    while (await this.localPartExists(tenantId, candidate)) {
+    while (await this.localPartExists(tenantId, candidate, excludeMailboxId)) {
       suffix += 1;
       candidate = `${base}${suffix}`;
     }
@@ -1111,15 +1367,23 @@ export class InternalMailService {
     return candidate;
   }
 
-  private async localPartExists(tenantId: string, localPart: string) {
+  private async localPartExists(tenantId: string, localPart: string, excludeMailboxId?: string) {
     const normalized = this.normalizeLocalPart(localPart);
     const [mailbox, alias] = await this.prisma.$transaction([
       this.prisma.internalMailbox.findFirst({
-        where: { tenantId, localPart: normalized },
+        where: {
+          tenantId,
+          localPart: normalized,
+          ...(excludeMailboxId ? { id: { not: excludeMailboxId } } : {}),
+        },
         select: { id: true },
       }),
       this.prisma.internalMailboxAlias.findFirst({
-        where: { tenantId, localPart: normalized },
+        where: {
+          tenantId,
+          localPart: normalized,
+          ...(excludeMailboxId ? { mailboxId: { not: excludeMailboxId } } : {}),
+        },
         select: { id: true },
       }),
     ]);
@@ -1155,6 +1419,18 @@ export class InternalMailService {
 
     const emailPart = this.normalizeLocalPart(user.email.split('@')[0] ?? '');
     return emailPart || 'user';
+  }
+
+  private mailboxBaseLocalPart(mailbox: InternalMailboxRecord) {
+    if (mailbox.type === InternalMailboxType.USER && mailbox.user) {
+      return this.preferredLocalPart(mailbox.user);
+    }
+
+    if (mailbox.type === InternalMailboxType.TEAM && mailbox.team?.name) {
+      return this.normalizeLocalPart(mailbox.team.name);
+    }
+
+    return this.normalizeLocalPart(mailbox.displayName || mailbox.localPart);
   }
 
   private normalizeAddressInputs(values: string[]) {

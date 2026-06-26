@@ -2,6 +2,14 @@ export interface AuthenticatedUser {
   id: string;
   tenantId: string;
   email: string;
+  internalEmail?: string | null;
+  internalMailbox?: {
+    id: string;
+    address: string;
+    localPart: string;
+    displayName: string;
+    status: string;
+  } | null;
   firstName: string;
   lastName: string;
   avatarUrl?: string | null;

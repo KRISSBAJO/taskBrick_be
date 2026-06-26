@@ -59,6 +59,15 @@ const userSelect = {
         }
       }
     }
+  },
+  internalMailbox: {
+    select: {
+      id: true,
+      address: true,
+      localPart: true,
+      displayName: true,
+      status: true
+    }
   }
 } satisfies Prisma.UserSelect;
 

@@ -120,6 +120,24 @@ export class CreateInternalMailboxAliasDto {
   isPrimary?: boolean;
 }
 
+export class RegenerateInternalMailboxAddressDto {
+  @ApiPropertyOptional({
+    description: 'Optional local part to use for the regenerated primary internal address.'
+  })
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  localPart?: string;
+
+  @ApiPropertyOptional({
+    default: true,
+    description: 'Keep the previous primary address as an active alias so old references still resolve.'
+  })
+  @IsOptional()
+  @IsBoolean()
+  keepPreviousAsAlias?: boolean;
+}
+
 export class UpsertInternalMailboxMemberDto {
   @ApiProperty()
   @IsString()

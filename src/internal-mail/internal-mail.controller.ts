@@ -24,6 +24,7 @@ import { InternalMailQueryDto } from './dto/internal-mail-query.dto';
 import {
   CreateInternalMailboxAliasDto,
   CreateInternalMailboxDto,
+  RegenerateInternalMailboxAddressDto,
   UpdateInternalMailboxDto,
   UpsertInternalMailboxMemberDto,
 } from './dto/manage-internal-mailbox.dto';
@@ -114,6 +115,22 @@ export class InternalMailController {
     return this.internalMailService.createAlias(user, mailboxId, dto, this.getRequestMeta(request));
   }
 
+  @Post('mailboxes/:mailboxId/regenerate-address')
+  @Version('1')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('manage:users')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Regenerate a tenant internal mailbox primary address and keep the previous address as an alias' })
+  @ApiOkResponse({ description: 'Regenerated mailbox identity' })
+  regenerateMailboxAddress(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('mailboxId') mailboxId: string,
+    @Body() dto: RegenerateInternalMailboxAddressDto,
+    @Req() request: Request,
+  ) {
+    return this.internalMailService.regenerateAddress(user, mailboxId, dto, this.getRequestMeta(request));
+  }
+
   @Post('mailboxes/:mailboxId/members')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -195,6 +212,20 @@ export class InternalMailController {
     @Req() request: Request,
   ) {
     return this.internalMailService.reply(user, threadId, dto, this.getRequestMeta(request));
+  }
+
+  @Post('threads/:threadId/send-draft')
+  @Version('1')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Send an existing internal mail draft' })
+  @ApiOkResponse({ description: 'Draft sent as an internal mail thread' })
+  sendDraft(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('threadId') threadId: string,
+    @Req() request: Request,
+  ) {
+    return this.internalMailService.sendDraft(user, threadId, this.getRequestMeta(request));
   }
 
   @Patch('threads/:threadId/read')
