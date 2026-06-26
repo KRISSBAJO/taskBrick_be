@@ -29,10 +29,11 @@ import { AgentQueryDto } from './dto/agent-query.dto';
 import { AiActionQueryDto } from './dto/ai-action-query.dto';
 import { UpdateAiSettingsDto } from './dto/ai-settings.dto';
 import { BoardAiApplyActionsDto } from './dto/board-ai-action.dto';
-import { BoardAiDto } from './dto/board-ai.dto';
+import { BoardAiDto, BoardAiHistoryQueryDto } from './dto/board-ai.dto';
 import {
   BoardAiActionPlanResponseDto,
   BoardAiApplyResponseDto,
+  BoardAiHistoryResponseDto,
   BoardAiRiskScanResponseDto,
   BoardAiSummaryResponseDto
 } from './dto/board-ai-response.dto';
@@ -328,6 +329,20 @@ export class AiController {
     @Req() request: Request
   ): Promise<BoardAiSummaryResponseDto> {
     return this.aiService.boardSummary(user, dto, this.getRequestMeta(request));
+  }
+
+  @Get('board-history')
+  @Version('1')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('read:ai')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List saved Board AI generations and apply attempts' })
+  @ApiOkResponse({ type: BoardAiHistoryResponseDto })
+  listBoardHistory(
+    @CurrentUser() user: AuthenticatedUser,
+    @Query() query: BoardAiHistoryQueryDto
+  ): Promise<BoardAiHistoryResponseDto> {
+    return this.aiService.listBoardHistory(user, query) as Promise<BoardAiHistoryResponseDto>;
   }
 
   @Post('board-risk-scan')

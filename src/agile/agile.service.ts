@@ -86,6 +86,7 @@ const sprintSelect = {
   },
   _count: {
     select: {
+      meetings: true,
       tasks: true,
       retrospectives: true
     }
@@ -350,6 +351,7 @@ export class AgileService {
   async createSprint(user: AuthenticatedUser, dto: CreateSprintDto, meta: RequestMeta) {
     await this.projectAccessPolicy.assertProjectAction(user, dto.projectId, 'manageSprints');
     await this.getTenantProjectOrThrow(user.tenantId, dto.projectId);
+    this.assertSprintSchedule(dto.startDate ? new Date(dto.startDate) : null, dto.endDate ? new Date(dto.endDate) : null);
 
     const sprint = await this.prisma.sprint.create({
       data: {
@@ -384,15 +386,19 @@ export class AgileService {
   ) {
     const before = await this.getTenantSprintOrThrow(user.tenantId, sprintId);
     await this.projectAccessPolicy.assertProjectAction(user, before.projectId, 'manageSprints');
+    const nextStartDate = this.resolveDatePatch(before.startDate, dto, 'startDate');
+    const nextEndDate = this.resolveDatePatch(before.endDate, dto, 'endDate');
+    this.assertSprintUpdateAllowed(before, dto, nextStartDate);
+    this.assertSprintSchedule(nextStartDate, nextEndDate);
 
     const sprint = await this.prisma.sprint.update({
       where: { id: sprintId },
       data: {
         name: dto.name,
         goal: dto.goal,
-        startDate: dto.startDate ? new Date(dto.startDate) : undefined,
-        endDate: dto.endDate ? new Date(dto.endDate) : undefined,
-        completedAt: dto.completedAt ? new Date(dto.completedAt) : undefined
+        startDate: this.datePatch(dto, 'startDate'),
+        endDate: this.datePatch(dto, 'endDate'),
+        completedAt: this.datePatch(dto, 'completedAt')
       },
       select: sprintSelect
     });
@@ -414,8 +420,16 @@ export class AgileService {
     const sprint = await this.getTenantSprintOrThrow(user.tenantId, sprintId);
     await this.projectAccessPolicy.assertProjectAction(user, sprint.projectId, 'manageSprints');
 
-    if (sprint._count.tasks > 0) {
-      throw new BadRequestException('Sprint must be empty before deletion');
+    if (sprint.completedAt) {
+      throw new BadRequestException('Completed sprints cannot be deleted');
+    }
+
+    if (this.isSprintActive(sprint)) {
+      throw new BadRequestException('Active sprints cannot be deleted');
+    }
+
+    if (sprint._count.tasks > 0 || sprint._count.retrospectives > 0 || sprint._count.meetings > 0) {
+      throw new BadRequestException('Sprint must have no tasks, meetings, or retrospectives before deletion');
     }
 
     await this.prisma.sprint.delete({ where: { id: sprintId } });
@@ -439,8 +453,8 @@ export class AgileService {
       where: {
         id: { not: sprintId },
         projectId: sprint.projectId,
-        startDate: { not: null },
-        completedAt: null
+        completedAt: null,
+        startDate: { lte: new Date() }
       },
       select: { id: true, name: true }
     });
@@ -452,7 +466,7 @@ export class AgileService {
     const updated = await this.prisma.sprint.update({
       where: { id: sprintId },
       data: {
-        startDate: sprint.startDate ?? new Date()
+        startDate: new Date()
       },
       select: sprintSelect
     });
@@ -477,6 +491,10 @@ export class AgileService {
 
     if (sprint.completedAt) {
       throw new BadRequestException('Sprint is already completed');
+    }
+
+    if (!sprint.startDate || sprint.startDate > new Date()) {
+      throw new BadRequestException('Only active sprints can be completed');
     }
 
     let moveTargetSprintId: string | null = null;
@@ -1300,12 +1318,23 @@ export class AgileService {
   }
 
   private sprintStateWhere(state?: 'planned' | 'active' | 'completed'): Prisma.SprintWhereInput {
+    const now = new Date();
+
     if (state === 'planned') {
-      return { startDate: null, completedAt: null };
+      return {
+        completedAt: null,
+        OR: [
+          { startDate: null },
+          { startDate: { gt: now } }
+        ]
+      };
     }
 
     if (state === 'active') {
-      return { startDate: { not: null }, completedAt: null };
+      return {
+        completedAt: null,
+        startDate: { lte: now }
+      };
     }
 
     if (state === 'completed') {
@@ -1313,6 +1342,65 @@ export class AgileService {
     }
 
     return {};
+  }
+
+  private datePatch<T extends 'completedAt' | 'endDate' | 'startDate'>(
+    dto: Pick<UpdateSprintDto, T>,
+    key: T
+  ) {
+    if (!Object.prototype.hasOwnProperty.call(dto, key)) {
+      return undefined;
+    }
+
+    const value = dto[key];
+    return value ? new Date(value) : null;
+  }
+
+  private resolveDatePatch<T extends 'endDate' | 'startDate'>(
+    current: Date | null,
+    dto: Pick<UpdateSprintDto, T>,
+    key: T
+  ) {
+    if (!Object.prototype.hasOwnProperty.call(dto, key)) {
+      return current;
+    }
+
+    const value = dto[key];
+    return value ? new Date(value) : null;
+  }
+
+  private assertSprintUpdateAllowed(
+    sprint: { startDate: Date | null; completedAt: Date | null },
+    dto: UpdateSprintDto,
+    nextStartDate: Date | null
+  ) {
+    if (Object.prototype.hasOwnProperty.call(dto, 'completedAt')) {
+      throw new BadRequestException('Use the complete sprint workflow to change completion state');
+    }
+
+    if (sprint.completedAt && (Object.prototype.hasOwnProperty.call(dto, 'startDate') || Object.prototype.hasOwnProperty.call(dto, 'endDate'))) {
+      throw new BadRequestException('Completed sprint schedule cannot be changed');
+    }
+
+    if (this.isSprintActive(sprint) && Object.prototype.hasOwnProperty.call(dto, 'startDate')) {
+      if (!nextStartDate || nextStartDate > new Date()) {
+        throw new BadRequestException('Active sprint start date cannot be cleared or moved to the future');
+      }
+    }
+  }
+
+  private assertSprintSchedule(startDate: Date | null, endDate: Date | null) {
+    if (!startDate && endDate) {
+      throw new BadRequestException('Sprint end date requires a start date');
+    }
+
+    if (startDate && endDate && endDate < startDate) {
+      throw new BadRequestException('Sprint end date must be after the start date');
+    }
+  }
+
+  private isSprintActive(sprint: { startDate: Date | null; completedAt: Date | null }) {
+    return Boolean(sprint.startDate && !sprint.completedAt && sprint.startDate <= new Date());
   }
 
   private async getTenantProjectOrThrow(tenantId: string, projectId: string) {

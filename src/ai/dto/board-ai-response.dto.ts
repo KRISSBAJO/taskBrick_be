@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { TaskPriority, TaskStatus, TaskType } from '@prisma/client';
+import { AiRequestStatus, TaskPriority, TaskStatus, TaskType } from '@prisma/client';
 
 export class BoardAiUsageDto {
   @ApiProperty()
@@ -236,4 +236,65 @@ export class BoardAiApplyResponseDto {
 
   @ApiProperty({ type: [BoardAiApplyResultDto] })
   results!: BoardAiApplyResultDto[];
+}
+
+export class BoardAiHistoryEntryDto {
+  @ApiProperty()
+  id!: string;
+
+  @ApiProperty({ enum: ['generation', 'apply'] })
+  kind!: 'generation' | 'apply';
+
+  @ApiProperty()
+  type!: string;
+
+  @ApiProperty()
+  projectId!: string;
+
+  @ApiPropertyOptional({ nullable: true, type: String })
+  boardId?: string | null;
+
+  @ApiProperty({ enum: AiRequestStatus })
+  status!: AiRequestStatus | string;
+
+  @ApiPropertyOptional()
+  provider?: string;
+
+  @ApiPropertyOptional()
+  model?: string;
+
+  @ApiPropertyOptional()
+  totalTokens?: number;
+
+  @ApiPropertyOptional()
+  estimatedCost?: number;
+
+  @ApiPropertyOptional()
+  error?: string;
+
+  @ApiPropertyOptional({ type: Object })
+  artifact?: Record<string, unknown>;
+
+  @ApiPropertyOptional({ type: [BoardAiApplyResultDto] })
+  results?: BoardAiApplyResultDto[];
+
+  @ApiProperty()
+  createdAt!: Date;
+}
+
+export class BoardAiHistoryResponseDto {
+  @ApiProperty({ type: [BoardAiHistoryEntryDto] })
+  data!: BoardAiHistoryEntryDto[];
+
+  @ApiProperty()
+  page!: number;
+
+  @ApiProperty()
+  limit!: number;
+
+  @ApiProperty()
+  total!: number;
+
+  @ApiProperty()
+  totalPages!: number;
 }

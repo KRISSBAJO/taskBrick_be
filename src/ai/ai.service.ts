@@ -26,7 +26,7 @@ import { AiActionQueryDto } from './dto/ai-action-query.dto';
 import { UpdateAiSettingsDto } from './dto/ai-settings.dto';
 import { BoardAiApplyActionsDto } from './dto/board-ai-action.dto';
 import { AiUsageQueryDto } from './dto/ai-usage-query.dto';
-import { BoardAiDto } from './dto/board-ai.dto';
+import { BoardAiDto, BoardAiHistoryQueryDto } from './dto/board-ai.dto';
 import {
   BoardAiActionPayloadDto,
   BoardAiActionRiskLevel,
@@ -804,12 +804,42 @@ export class AiService {
     input: TenantAiGenerationInput,
     meta: RequestMeta
   ): Promise<TenantAiGenerationResult> {
-    const settings = await this.assertAiEnabled(user.tenantId);
-    await this.assertWithinUsageLimit(user.tenantId, settings);
-    const agent = input.agentId
-      ? await this.getAgentOrThrow(user.tenantId, input.agentId)
-      : await this.getOrCreateDefaultAgent(user);
-    this.assertAgentUsable(agent);
+    const preflightStartedAt = Date.now();
+    let settings: AiSettingsRecord;
+    let agent: AiAgentRecord;
+    try {
+      settings = await this.assertAiEnabled(user.tenantId);
+      await this.assertWithinUsageLimit(user.tenantId, settings);
+      agent = input.agentId
+        ? await this.getAgentOrThrow(user.tenantId, input.agentId)
+        : await this.getOrCreateDefaultAgent(user);
+      this.assertAgentUsable(agent);
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : 'AI request failed before provider execution';
+      const failedUsage = await this.logUsage({
+        tenantId: user.tenantId,
+        userId: user.id,
+        provider: 'unavailable',
+        model: 'unavailable',
+        status: AiRequestStatus.FAILED,
+        inputTokens: this.estimateTokens(`${input.prompt}\n${JSON.stringify(input.context ?? {})}`),
+        outputTokens: 0,
+        latencyMs: Date.now() - preflightStartedAt,
+        requestType: input.requestType,
+        requestHash: this.hashText(`${input.requestType}:${input.prompt}`),
+        error: messageText,
+        metadata: {
+          ...input.metadata,
+          generatedContent: false,
+          preflightFailed: true
+        }
+      });
+      await this.recordAudit(user, `ai.${input.requestType}_preflight_failed`, 'AiUsageLog', failedUsage.id, undefined, this.toJson({
+        error: messageText,
+        metadata: input.metadata
+      }), meta);
+      throw error;
+    }
     const sanitizedPrompt = settings.redactSensitiveData ? this.redactSensitiveData(input.prompt) : input.prompt;
     const message = {
       id: 'ephemeral',
@@ -828,7 +858,38 @@ export class AiService {
       metadata: null,
       createdAt: new Date()
     } as Prisma.AiMessageGetPayload<{ select: typeof aiMessageSelect }>;
-    const completion = await this.completeWithProvider(settings, agent, [message], input.context ?? {});
+    const startedAt = Date.now();
+    let completion: AiCompletionResult;
+    try {
+      completion = await this.completeWithProvider(settings, agent, [message], input.context ?? {});
+    } catch (error) {
+      const messageText = error instanceof Error ? error.message : 'AI provider request failed';
+      const failedUsage = await this.logUsage({
+        tenantId: user.tenantId,
+        userId: user.id,
+        agentId: agent.id,
+        provider: agent.provider,
+        model: agent.model,
+        status: AiRequestStatus.FAILED,
+        inputTokens: this.estimateTokens(`${sanitizedPrompt}\n${JSON.stringify(input.context ?? {})}`),
+        outputTokens: 0,
+        latencyMs: Date.now() - startedAt,
+        requestType: input.requestType,
+        requestHash: this.hashText(`${input.requestType}:${sanitizedPrompt}`),
+        error: messageText,
+        metadata: {
+          ...input.metadata,
+          generatedContent: false
+        }
+      });
+      await this.recordAudit(user, `ai.${input.requestType}_failed`, 'AiUsageLog', failedUsage.id, undefined, this.toJson({
+        provider: agent.provider,
+        model: agent.model,
+        error: messageText,
+        metadata: input.metadata
+      }), meta);
+      throw error;
+    }
     const usage = await this.logUsage({
       tenantId: user.tenantId,
       userId: user.id,
@@ -921,11 +982,7 @@ export class AiService {
       requestType: 'board_summary'
     }, meta);
     const findings = this.buildBoardRiskFindings(context);
-    await this.recordAudit(user, 'ai.board_summary', 'Project', dto.projectId, undefined, {
-      boardId: context.board?.id ?? null,
-      usageLogId: completion.usage.id
-    }, meta);
-    return {
+    const response = {
       generated: true,
       projectId: dto.projectId,
       boardId: context.board?.id ?? null,
@@ -935,6 +992,20 @@ export class AiService {
       recommendedActions: this.buildBoardRecommendedActions(context, findings),
       usage: this.toBoardAiUsage(completion.usage)
     };
+    await this.persistBoardAiArtifact(completion.usage.id, {
+      type: 'board_summary',
+      projectId: dto.projectId,
+      boardId: context.board?.id ?? null,
+      content: response.content,
+      highlights: response.highlights,
+      risks: response.risks,
+      recommendedActions: response.recommendedActions
+    });
+    await this.recordAudit(user, 'ai.board_summary', 'Project', dto.projectId, undefined, {
+      boardId: context.board?.id ?? null,
+      usageLogId: completion.usage.id
+    }, meta);
+    return response;
   }
 
   async boardRiskScan(user: AuthenticatedUser, dto: BoardAiDto, meta: RequestMeta) {
@@ -952,12 +1023,7 @@ export class AiService {
       ].join(' '),
       requestType: 'board_risk_scan'
     }, meta);
-    await this.recordAudit(user, 'ai.board_risk_scan', 'Project', dto.projectId, undefined, {
-      boardId: context.board?.id ?? null,
-      findings: findings.length,
-      usageLogId: completion.usage.id
-    }, meta);
-    return {
+    const response = {
       generated: true,
       projectId: dto.projectId,
       boardId: context.board?.id ?? null,
@@ -965,6 +1031,19 @@ export class AiService {
       narrative: completion.content,
       usage: this.toBoardAiUsage(completion.usage)
     };
+    await this.persistBoardAiArtifact(completion.usage.id, {
+      type: 'board_risk_scan',
+      projectId: dto.projectId,
+      boardId: context.board?.id ?? null,
+      findings,
+      narrative: response.narrative
+    });
+    await this.recordAudit(user, 'ai.board_risk_scan', 'Project', dto.projectId, undefined, {
+      boardId: context.board?.id ?? null,
+      findings: findings.length,
+      usageLogId: completion.usage.id
+    }, meta);
+    return response;
   }
 
   async boardActionPlan(user: AuthenticatedUser, dto: BoardAiDto, meta: RequestMeta) {
@@ -995,12 +1074,33 @@ export class AiService {
           input: this.toJson({
             ...proposal,
             boardId: context.board?.id ?? null,
-            projectId: dto.projectId
+            projectId: dto.projectId,
+            usageLogId: completion.usage.id
           })
         },
         select: aiActionSelect
       })
     ));
+
+    const proposals = proposalDrafts.map((proposal, index) => ({
+      actionId: actions[index].id,
+      ...proposal
+    }));
+    const response = {
+      generated: true,
+      projectId: dto.projectId,
+      boardId: context.board?.id ?? null,
+      summary: completion.content,
+      proposals,
+      usage: this.toBoardAiUsage(completion.usage)
+    };
+    await this.persistBoardAiArtifact(completion.usage.id, {
+      type: 'board_action_plan',
+      projectId: dto.projectId,
+      boardId: context.board?.id ?? null,
+      summary: response.summary,
+      proposals
+    });
 
     await this.recordAudit(user, 'ai.board_action_plan', 'Project', dto.projectId, undefined, {
       boardId: context.board?.id ?? null,
@@ -1008,17 +1108,7 @@ export class AiService {
       usageLogId: completion.usage.id
     }, meta);
 
-    return {
-      generated: true,
-      projectId: dto.projectId,
-      boardId: context.board?.id ?? null,
-      summary: completion.content,
-      proposals: proposalDrafts.map((proposal, index) => ({
-        actionId: actions[index].id,
-        ...proposal
-      })),
-      usage: this.toBoardAiUsage(completion.usage)
-    };
+    return response;
   }
 
   async applyBoardActions(user: AuthenticatedUser, dto: BoardAiApplyActionsDto, meta: RequestMeta) {
@@ -1110,6 +1200,7 @@ export class AiService {
 
     const applied = results.filter((result) => result.status === AiActionStatus.COMPLETED).length;
     const failed = results.length - applied;
+    await this.recordBoardApplyAttempt(user, dto, results, applied, failed);
     await this.recordAudit(user, 'ai.board_actions_apply', 'Project', dto.projectId, undefined, {
       actionIds: uniqueActionIds,
       applied,
@@ -1123,6 +1214,94 @@ export class AiService {
       applied,
       failed,
       results
+    };
+  }
+
+  async listBoardHistory(user: AuthenticatedUser, query: BoardAiHistoryQueryDto) {
+    this.assertCanReadAi(user);
+    if (query.projectId) {
+      await this.projectAccessPolicy.assertProjectAction(user, query.projectId, 'viewBoard');
+    }
+
+    const includeGenerations = !query.type || ['board_summary', 'board_risk_scan', 'board_action_plan'].includes(query.type);
+    const includeApplyAttempts = !query.type || query.type === 'board_actions_apply';
+    const generationTypes = query.type && query.type !== 'board_actions_apply'
+      ? [query.type]
+      : ['board_summary', 'board_risk_scan', 'board_action_plan'];
+    const historyTake = query.page * query.limit;
+    const usageFilters: Prisma.AiUsageLogWhereInput[] = [];
+    const applyFilters: Prisma.AiActionWhereInput[] = [];
+    if (query.projectId) {
+      usageFilters.push({ metadata: { path: ['projectId'], equals: query.projectId } });
+      applyFilters.push({ entityId: query.projectId });
+    }
+    if (query.boardId) {
+      usageFilters.push({ metadata: { path: ['boardId'], equals: query.boardId } });
+      applyFilters.push({ input: { path: ['boardId'], equals: query.boardId } });
+    }
+
+    const usageWhere: Prisma.AiUsageLogWhereInput = {
+      tenantId: user.tenantId,
+      requestType: { in: generationTypes },
+      AND: usageFilters.length ? usageFilters : undefined,
+      ...(query.search
+        ? {
+            OR: [
+              { provider: { contains: query.search, mode: 'insensitive' } },
+              { model: { contains: query.search, mode: 'insensitive' } },
+              { requestType: { contains: query.search, mode: 'insensitive' } },
+              { error: { contains: query.search, mode: 'insensitive' } }
+            ]
+          }
+        : {})
+    };
+    const applyWhere: Prisma.AiActionWhereInput = {
+      tenantId: user.tenantId,
+      type: 'BOARD_APPLY_ACTIONS',
+      AND: applyFilters.length ? applyFilters : undefined,
+      ...(query.search
+        ? {
+            OR: [
+              { type: { contains: query.search, mode: 'insensitive' } },
+              { error: { contains: query.search, mode: 'insensitive' } }
+            ]
+          }
+        : {})
+    };
+
+    const [usageLogs, usageTotal, applyActions, applyTotal] = await Promise.all([
+      includeGenerations
+        ? this.prisma.aiUsageLog.findMany({
+            where: usageWhere,
+            select: aiUsageSelect,
+            orderBy: [{ createdAt: 'desc' }],
+            take: historyTake
+          })
+        : Promise.resolve([]),
+      includeGenerations ? this.prisma.aiUsageLog.count({ where: usageWhere }) : Promise.resolve(0),
+      includeApplyAttempts
+        ? this.prisma.aiAction.findMany({
+            where: applyWhere,
+            select: aiActionSelect,
+            orderBy: [{ createdAt: 'desc' }],
+            take: historyTake
+          })
+        : Promise.resolve([]),
+      includeApplyAttempts ? this.prisma.aiAction.count({ where: applyWhere }) : Promise.resolve(0)
+    ]);
+
+    const merged = [
+      ...usageLogs.map((log) => this.boardHistoryEntryFromUsage(log)),
+      ...applyActions.map((action) => this.boardHistoryEntryFromApplyAction(action))
+    ].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
+    const start = (query.page - 1) * query.limit;
+    const total = usageTotal + applyTotal;
+    return {
+      data: merged.slice(start, start + query.limit),
+      page: query.page,
+      limit: query.limit,
+      total,
+      totalPages: Math.ceil(total / query.limit)
     };
   }
 
@@ -2602,6 +2781,100 @@ export class AiService {
     return value && typeof value === 'object' && !Array.isArray(value)
       ? (value as Record<string, unknown>)
       : {};
+  }
+
+  private async persistBoardAiArtifact(usageLogId: string, artifact: Record<string, unknown>) {
+    const existing = await this.prisma.aiUsageLog.findUnique({
+      where: { id: usageLogId },
+      select: { metadata: true }
+    });
+    const metadata = this.asRecord(existing?.metadata);
+    await this.prisma.aiUsageLog.update({
+      where: { id: usageLogId },
+      data: {
+        metadata: this.toJson({
+          ...metadata,
+          projectId: artifact.projectId,
+          boardId: artifact.boardId ?? null,
+          boardArtifact: artifact
+        })
+      },
+      select: { id: true }
+    });
+  }
+
+  private async recordBoardApplyAttempt(
+    user: AuthenticatedUser,
+    dto: BoardAiApplyActionsDto,
+    results: BoardAiApplyResultDto[],
+    applied: number,
+    failed: number
+  ) {
+    await this.prisma.aiAction.create({
+      data: {
+        tenantId: user.tenantId,
+        requestedById: user.id,
+        type: 'BOARD_APPLY_ACTIONS',
+        status: failed > 0 ? AiActionStatus.FAILED : AiActionStatus.COMPLETED,
+        entityType: 'PROJECT',
+        entityId: dto.projectId,
+        input: this.toJson({
+          actionIds: dto.actionIds,
+          boardId: dto.boardId ?? null,
+          projectId: dto.projectId
+        }),
+        output: this.toJson({
+          applied,
+          failed,
+          results
+        }),
+        error: failed > 0 ? `${failed} board AI action(s) failed` : null,
+        completedAt: new Date()
+      },
+      select: { id: true }
+    });
+  }
+
+  private boardHistoryEntryFromUsage(log: Prisma.AiUsageLogGetPayload<{ select: typeof aiUsageSelect }>) {
+    const metadata = this.asRecord(log.metadata);
+    const artifact = this.asRecord(metadata.boardArtifact);
+    return {
+      id: log.id,
+      kind: 'generation' as const,
+      type: log.requestType ?? this.stringValue(artifact.type) ?? 'board_generation',
+      projectId: this.stringValue(metadata.projectId) ?? this.stringValue(artifact.projectId) ?? '',
+      boardId: this.stringValue(metadata.boardId) ?? this.stringValue(artifact.boardId) ?? null,
+      status: log.status,
+      provider: log.provider,
+      model: log.model,
+      totalTokens: log.totalTokens,
+      estimatedCost: log.estimatedCost === null || log.estimatedCost === undefined ? undefined : Number(log.estimatedCost),
+      error: log.error ?? undefined,
+      artifact: Object.keys(artifact).length ? artifact : undefined,
+      createdAt: log.createdAt
+    };
+  }
+
+  private boardHistoryEntryFromApplyAction(action: Prisma.AiActionGetPayload<{ select: typeof aiActionSelect }>) {
+    const input = this.asRecord(action.input);
+    const output = this.asRecord(action.output);
+    const results = Array.isArray(output.results) ? output.results as BoardAiApplyResultDto[] : [];
+    return {
+      id: action.id,
+      kind: 'apply' as const,
+      type: 'board_actions_apply',
+      projectId: this.stringValue(input.projectId) ?? action.entityId ?? '',
+      boardId: this.stringValue(input.boardId) ?? null,
+      status: action.status,
+      error: action.error ?? undefined,
+      artifact: {
+        actionIds: Array.isArray(input.actionIds) ? input.actionIds : [],
+        applied: this.numberValue(output.applied) ?? 0,
+        failed: this.numberValue(output.failed) ?? 0
+      },
+      results,
+      createdAt: action.createdAt
+    };
   }
 
   private dateFilter(from?: string, to?: string): Prisma.DateTimeFilter | undefined {

@@ -14,18 +14,18 @@ export class UpdateSprintDto {
   @MaxLength(1000)
   goal?: string;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true, type: String })
   @IsOptional()
   @IsDateString()
-  startDate?: string;
+  startDate?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true, type: String })
   @IsOptional()
   @IsDateString()
-  endDate?: string;
+  endDate?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true, type: String })
   @IsOptional()
   @IsDateString()
-  completedAt?: string;
+  completedAt?: string | null;
 }
