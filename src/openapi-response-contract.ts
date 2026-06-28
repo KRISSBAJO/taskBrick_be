@@ -16909,6 +16909,30 @@ export const openApiComponentSchemas: Record<string, OpenApiSchema> = {
         "nullable": true,
         "type": "string"
       },
+      "avatarUrl": {
+        "nullable": true,
+        "type": "string"
+      },
+      "avatarPublicId": {
+        "nullable": true,
+        "type": "string"
+      },
+      "createdById": {
+        "nullable": true,
+        "type": "string"
+      },
+      "updatedById": {
+        "nullable": true,
+        "type": "string"
+      },
+      "deletedAt": {
+        "nullable": true,
+        "type": "string"
+      },
+      "deletedById": {
+        "nullable": true,
+        "type": "string"
+      },
       "id": {
         "type": "string"
       },
@@ -24717,6 +24741,33 @@ export const openApiOperationResponseSchemas: Record<string, Partial<Record<Open
       "type": "object"
     },
     "post": {
+      "$ref": "#/components/schemas/Team"
+    }
+  },
+  "/api/v1/teams/{teamId}": {
+    "delete": {
+      "properties": {
+        "mode": {
+          "enum": [
+            "deleted",
+            "soft_deleted"
+          ],
+          "type": "string"
+        },
+        "success": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "success",
+        "mode"
+      ],
+      "type": "object"
+    },
+    "get": {
+      "$ref": "#/components/schemas/Team"
+    },
+    "patch": {
       "$ref": "#/components/schemas/Team"
     }
   },

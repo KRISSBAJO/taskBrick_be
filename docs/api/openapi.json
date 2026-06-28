@@ -12945,7 +12945,14 @@
         ],
         "responses": {
           "200": {
-            "description": "Tenant team"
+            "description": "Tenant team",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Team"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -12982,7 +12989,14 @@
         },
         "responses": {
           "200": {
-            "description": "Updated team"
+            "description": "Updated team",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Team"
+                }
+              }
+            }
           }
         },
         "security": [
@@ -13013,9 +13027,23 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "example": {
-                    "success": true
-                  }
+                  "properties": {
+                    "mode": {
+                      "enum": [
+                        "deleted",
+                        "soft_deleted"
+                      ],
+                      "type": "string"
+                    },
+                    "success": {
+                      "type": "boolean"
+                    }
+                  },
+                  "required": [
+                    "success",
+                    "mode"
+                  ],
+                  "type": "object"
                 }
               }
             }
@@ -13026,7 +13054,7 @@
             "bearer": []
           }
         ],
-        "summary": "Delete an empty team in the current tenant",
+        "summary": "Delete or soft-delete a team in the current tenant",
         "tags": [
           "teams"
         ]
@@ -54487,6 +54515,30 @@
             "nullable": true,
             "type": "string"
           },
+          "avatarUrl": {
+            "nullable": true,
+            "type": "string"
+          },
+          "avatarPublicId": {
+            "nullable": true,
+            "type": "string"
+          },
+          "createdById": {
+            "nullable": true,
+            "type": "string"
+          },
+          "updatedById": {
+            "nullable": true,
+            "type": "string"
+          },
+          "deletedAt": {
+            "nullable": true,
+            "type": "string"
+          },
+          "deletedById": {
+            "nullable": true,
+            "type": "string"
+          },
           "id": {
             "type": "string"
           },
@@ -57139,6 +57191,16 @@
           },
           "workspaceId": {
             "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "example": "https://res.cloudinary.com/taskbricks/image/upload/v1/team-avatar.png",
+            "nullable": true
+          },
+          "avatarPublicId": {
+            "type": "string",
+            "example": "taskbricks/teams/platform-avatar",
+            "nullable": true
           }
         },
         "required": [
@@ -57158,6 +57220,16 @@
           },
           "workspaceId": {
             "type": "string"
+          },
+          "avatarUrl": {
+            "type": "string",
+            "example": "https://res.cloudinary.com/taskbricks/image/upload/v1/team-avatar.png",
+            "nullable": true
+          },
+          "avatarPublicId": {
+            "type": "string",
+            "example": "taskbricks/teams/platform-avatar",
+            "nullable": true
           }
         }
       },

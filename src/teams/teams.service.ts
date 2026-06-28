@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   NotFoundException
 } from '@nestjs/common';
@@ -37,6 +38,12 @@ const teamSelect = {
   workspaceId: true,
   name: true,
   description: true,
+  avatarUrl: true,
+  avatarPublicId: true,
+  createdById: true,
+  updatedById: true,
+  deletedAt: true,
+  deletedById: true,
   createdAt: true,
   updatedAt: true,
   workspace: {
@@ -49,7 +56,13 @@ const teamSelect = {
   _count: {
     select: {
       members: true,
-      projects: true
+      projects: true,
+      meetings: true,
+      meetingAvailabilityWindows: true,
+      meetingBlackoutWindows: true,
+      bookingPages: true,
+      bookingRequests: true,
+      internalMailMailboxes: true
     }
   }
 } satisfies Prisma.TeamSelect;
@@ -127,6 +140,7 @@ export class TeamsService {
   async list(user: AuthenticatedUser, query: TeamQueryDto) {
     const where: Prisma.TeamWhereInput = {
       tenantId: user.tenantId,
+      deletedAt: null,
       ...(query.workspaceId ? { workspaceId: query.workspaceId } : {}),
       ...(query.search
         ? {
@@ -169,7 +183,11 @@ export class TeamsService {
         tenantId: user.tenantId,
         workspaceId: dto.workspaceId,
         name: dto.name,
-        description: dto.description
+        description: dto.description,
+        avatarUrl: dto.avatarUrl,
+        avatarPublicId: dto.avatarPublicId,
+        createdById: user.id,
+        updatedById: user.id
       },
       select: teamSelect
     });
@@ -182,7 +200,8 @@ export class TeamsService {
       entityId: team.id,
       newValue: {
         name: team.name,
-        workspaceId: team.workspaceId
+        workspaceId: team.workspaceId,
+        avatarUrl: team.avatarUrl
       },
       ipAddress: meta.ipAddress,
       userAgent: meta.userAgent
@@ -193,6 +212,7 @@ export class TeamsService {
 
   async update(user: AuthenticatedUser, teamId: string, dto: UpdateTeamDto, meta: RequestMeta) {
     const before = await this.getTenantTeamOrThrow(user.tenantId, teamId);
+    this.assertCanManageTeam(user, before);
 
     if (dto.workspaceId) {
       await this.assertWorkspaceBelongsToTenant(user.tenantId, dto.workspaceId);
@@ -203,7 +223,10 @@ export class TeamsService {
       data: {
         name: dto.name,
         description: dto.description,
-        workspaceId: dto.workspaceId
+        workspaceId: dto.workspaceId,
+        avatarUrl: dto.avatarUrl,
+        avatarPublicId: dto.avatarPublicId,
+        updatedById: user.id
       },
       select: teamSelect
     });
@@ -216,11 +239,13 @@ export class TeamsService {
       entityId: teamId,
       oldValue: {
         name: before.name,
-        workspaceId: before.workspaceId
+        workspaceId: before.workspaceId,
+        avatarUrl: before.avatarUrl
       },
       newValue: {
         name: updated.name,
-        workspaceId: updated.workspaceId
+        workspaceId: updated.workspaceId,
+        avatarUrl: updated.avatarUrl
       },
       ipAddress: meta.ipAddress,
       userAgent: meta.userAgent
@@ -231,14 +256,43 @@ export class TeamsService {
 
   async delete(user: AuthenticatedUser, teamId: string, meta: RequestMeta) {
     const team = await this.getTenantTeamOrThrow(user.tenantId, teamId);
+    this.assertCanManageTeam(user, team);
 
-    if (team._count.members > 0 || team._count.projects > 0) {
-      throw new BadRequestException('Team must be empty before deletion');
+    const hasDependentData = Object.values(team._count).some((count) => count > 0);
+
+    if (hasDependentData) {
+      const deleted = await this.prisma.team.update({
+        where: { id: teamId },
+        data: {
+          deletedAt: new Date(),
+          deletedById: user.id,
+          updatedById: user.id
+        },
+        select: teamSelect
+      });
+
+      await this.auditService.record({
+        tenantId: user.tenantId,
+        actorId: user.id,
+        action: 'team.soft_delete',
+        entityType: 'Team',
+        entityId: teamId,
+        oldValue: {
+          name: team.name,
+          workspaceId: team.workspaceId,
+          counts: team._count
+        },
+        newValue: {
+          deletedAt: deleted.deletedAt
+        },
+        ipAddress: meta.ipAddress,
+        userAgent: meta.userAgent
+      });
+
+      return { success: true, mode: 'soft_deleted' as const };
     }
 
-    await this.prisma.team.delete({
-      where: { id: teamId }
-    });
+    await this.prisma.team.delete({ where: { id: teamId } });
 
     await this.auditService.record({
       tenantId: user.tenantId,
@@ -254,7 +308,7 @@ export class TeamsService {
       userAgent: meta.userAgent
     });
 
-    return { success: true };
+    return { success: true, mode: 'deleted' as const };
   }
 
   async listMembers(user: AuthenticatedUser, teamId: string) {
@@ -569,7 +623,8 @@ export class TeamsService {
     const team = await this.prisma.team.findFirst({
       where: {
         id: teamId,
-        tenantId
+        tenantId,
+        deletedAt: null
       },
       select: teamSelect
     });
@@ -579,6 +634,18 @@ export class TeamsService {
     }
 
     return team;
+  }
+
+  private assertCanManageTeam(user: AuthenticatedUser, team: { createdById?: string | null }) {
+    const permissions = new Set(user.permissions);
+    const canManage =
+      permissions.has('manage:all') ||
+      permissions.has('manage:teams') ||
+      team.createdById === user.id;
+
+    if (!canManage) {
+      throw new ForbiddenException('Only an owner, administrator, or team creator can change this team');
+    }
   }
 
   private async assertWorkspaceBelongsToTenant(tenantId: string, workspaceId: string) {

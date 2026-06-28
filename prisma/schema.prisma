@@ -689,6 +689,12 @@ model Team {
   workspaceId String?
   name        String
   description String?
+  avatarUrl   String?
+  avatarPublicId String?
+  createdById String?
+  updatedById String?
+  deletedAt   DateTime?
+  deletedById String?
 
   tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   workspace   Workspace? @relation(fields: [workspaceId], references: [id])
@@ -705,6 +711,8 @@ model Team {
   updatedAt   DateTime @updatedAt
 
   @@index([tenantId])
+  @@index([tenantId, deletedAt])
+  @@index([tenantId, createdById])
 }
 
 model TeamMember {

@@ -91,8 +91,7 @@ export class TeamsController {
 
   @Patch(':teamId')
   @Version('1')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:teams')
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a team in the current tenant' })
   @ApiOkResponse({ description: 'Updated team' })
@@ -107,11 +106,10 @@ export class TeamsController {
 
   @Delete(':teamId')
   @Version('1')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:teams')
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Delete an empty team in the current tenant' })
-  @ApiOkResponse({ schema: { example: { success: true } } })
+  @ApiOperation({ summary: 'Delete or soft-delete a team in the current tenant' })
+  @ApiOkResponse({ schema: { example: { success: true, mode: 'soft_deleted' } } })
   delete(
     @CurrentUser() user: AuthenticatedUser,
     @Param('teamId') teamId: string,
