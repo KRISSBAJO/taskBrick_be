@@ -386,6 +386,21 @@ export class FilesService {
       count = await this.prisma.workflowRun.count({
         where: { id: entityId, tenantId: user.tenantId }
       });
+    } else if (normalizedType === 'TEAM') {
+      const canManageTeamFiles = this.canManageFiles(user) || user.permissions.includes('manage:teams');
+      count = await this.prisma.team.count({
+        where: {
+          id: entityId,
+          tenantId: user.tenantId,
+          deletedAt: null,
+          OR: canManageTeamFiles
+            ? undefined
+            : [
+                { createdById: user.id },
+                { members: { some: { userId: user.id } } }
+              ]
+        }
+      });
     } else if (normalizedType === 'MEETING') {
       count = await this.prisma.meeting.count({
         where: {
@@ -448,6 +463,22 @@ export class FilesService {
       if (!task) return false;
       const matrix = await this.projectAccessPolicy.getProjectPermissions(user, task.projectId);
       return matrix.actions.viewPrivateFiles;
+    }
+    if (normalizedType === 'TEAM') {
+      if (user.permissions.includes('manage:teams')) return true;
+      const team = await this.prisma.team.findFirst({
+        where: {
+          id: entityId,
+          tenantId: user.tenantId,
+          deletedAt: null,
+          OR: [
+            { createdById: user.id },
+            { members: { some: { userId: user.id } } }
+          ]
+        },
+        select: { id: true }
+      });
+      return Boolean(team);
     }
     return false;
   }
