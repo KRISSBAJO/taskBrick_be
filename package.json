@@ -9,7 +9,7 @@
     "start": "nest start",
     "start:prod": "node dist/main.js",
     "build": "nest build",
-    "lint": "eslint \"src/**/*.ts\"",
+    "lint": "eslint \"src/**/*.ts\" \"scripts/**/*.ts\"",
     "format": "prettier --write \"src/**/*.ts\" \"prisma/**/*.prisma\"",
     "test": "jest",
     "test:unit": "jest --runInBand",
@@ -27,6 +27,7 @@
     "prisma:migrate:deploy": "prisma migrate deploy",
     "prisma:seed": "prisma db seed",
     "prisma:studio": "prisma studio",
+    "rbac:sync": "ts-node scripts/sync-rbac-defaults.ts",
     "openapi:export": "ts-node scripts/export-openapi.ts",
     "openapi:check": "npm run openapi:export && git diff --exit-code -- docs/api/openapi.json",
     "frontend:contract": "npm run openapi:export && ts-node scripts/verify-frontend-contract.ts"

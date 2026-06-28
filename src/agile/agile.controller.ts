@@ -70,7 +70,7 @@ export class AgileController {
   @Post('sprints')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:tasks')
+  @RequirePermissions('read:tasks')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a sprint' })
   @ApiCreatedResponse({ description: 'Created sprint' })
@@ -95,7 +95,7 @@ export class AgileController {
   @Patch('sprints/:sprintId')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:tasks')
+  @RequirePermissions('read:tasks')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a sprint' })
   updateSprint(
@@ -110,7 +110,7 @@ export class AgileController {
   @Delete('sprints/:sprintId')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:tasks')
+  @RequirePermissions('read:tasks')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete an empty sprint' })
   deleteSprint(
@@ -124,7 +124,7 @@ export class AgileController {
   @Post('sprints/:sprintId/start')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:tasks')
+  @RequirePermissions('read:tasks')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Start a sprint and enforce one active sprint per project' })
   startSprint(
@@ -138,7 +138,7 @@ export class AgileController {
   @Post('sprints/:sprintId/complete')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:tasks')
+  @RequirePermissions('read:tasks')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Complete a sprint and optionally move incomplete tasks' })
   completeSprint(
@@ -167,7 +167,7 @@ export class AgileController {
   @Post('sprints/:sprintId/tasks')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:tasks')
+  @RequirePermissions('read:tasks')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Add tasks to a sprint' })
   addSprintTasks(
@@ -182,7 +182,7 @@ export class AgileController {
   @Delete('sprints/:sprintId/tasks/:taskId')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:tasks')
+  @RequirePermissions('read:tasks')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Remove a task from a sprint' })
   removeSprintTask(
@@ -217,7 +217,7 @@ export class AgileController {
   @Post('sprints/:sprintId/retrospectives')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:tasks')
+  @RequirePermissions('read:tasks')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a sprint retrospective' })
   createRetrospective(
@@ -232,7 +232,7 @@ export class AgileController {
   @Patch('sprints/:sprintId/retrospectives/:retrospectiveId')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:tasks')
+  @RequirePermissions('read:tasks')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a sprint retrospective' })
   updateRetrospective(
@@ -254,7 +254,7 @@ export class AgileController {
   @Delete('sprints/:sprintId/retrospectives/:retrospectiveId')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:tasks')
+  @RequirePermissions('read:tasks')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a sprint retrospective' })
   deleteRetrospective(
@@ -308,7 +308,7 @@ export class AgileController {
   @Post('projects/:projectId/boards')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:tasks')
+  @RequirePermissions('read:tasks')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a project board' })
   createBoard(
@@ -323,7 +323,7 @@ export class AgileController {
   @Patch('boards/:boardId')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:tasks')
+  @RequirePermissions('read:tasks')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a board' })
   updateBoard(
@@ -338,7 +338,7 @@ export class AgileController {
   @Delete('boards/:boardId')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:tasks')
+  @RequirePermissions('read:tasks')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a non-default board' })
   deleteBoard(
@@ -352,7 +352,7 @@ export class AgileController {
   @Post('boards/:boardId/columns')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:tasks')
+  @RequirePermissions('read:tasks')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Create a board column' })
   createBoardColumn(
@@ -367,7 +367,7 @@ export class AgileController {
   @Patch('boards/:boardId/columns/reorder')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:tasks')
+  @RequirePermissions('read:tasks')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Persist board column ordering transactionally' })
   reorderBoardColumns(
@@ -382,7 +382,7 @@ export class AgileController {
   @Patch('boards/:boardId/columns/:columnId')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:tasks')
+  @RequirePermissions('read:tasks')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update a board column' })
   updateBoardColumn(
@@ -404,7 +404,7 @@ export class AgileController {
   @Delete('boards/:boardId/columns/:columnId')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:tasks')
+  @RequirePermissions('read:tasks')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete an empty board column' })
   deleteBoardColumn(
@@ -424,7 +424,7 @@ export class AgileController {
   @Patch('tasks/:taskId/status')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:tasks')
+  @RequirePermissions('read:tasks')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update task status with WIP limit enforcement' })
   updateTaskStatus(
@@ -439,7 +439,7 @@ export class AgileController {
   @Patch('tasks/:taskId/order')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('manage:tasks')
+  @RequirePermissions('read:tasks')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Persist task board ordering' })
   updateTaskOrder(

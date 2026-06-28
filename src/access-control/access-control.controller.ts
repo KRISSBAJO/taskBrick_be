@@ -31,13 +31,13 @@ import { UpdateRoleDto } from './dto/update-role.dto';
 @ApiTags('access-control')
 @ApiBearerAuth()
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions('manage:roles')
 @Controller()
 export class AccessControlController {
   constructor(private readonly accessControlService: AccessControlService) {}
 
   @Get('permissions')
   @Version('1')
+  @RequirePermissions('read:roles')
   @ApiOperation({ summary: 'List permissions available in the current tenant' })
   @ApiOkResponse({ description: 'Tenant permissions' })
   listPermissions(@CurrentUser() user: AuthenticatedUser) {
@@ -46,6 +46,7 @@ export class AccessControlController {
 
   @Get('roles')
   @Version('1')
+  @RequirePermissions('read:roles')
   @ApiOperation({ summary: 'List roles in the current tenant' })
   @ApiOkResponse({ description: 'Tenant roles with permissions' })
   listRoles(@CurrentUser() user: AuthenticatedUser) {
@@ -54,6 +55,7 @@ export class AccessControlController {
 
   @Post('roles')
   @Version('1')
+  @RequirePermissions('manage:roles')
   @ApiOperation({ summary: 'Create a custom role in the current tenant' })
   @ApiCreatedResponse({ description: 'Created role' })
   createRole(
@@ -66,6 +68,7 @@ export class AccessControlController {
 
   @Patch('roles/:roleId')
   @Version('1')
+  @RequirePermissions('manage:roles')
   @ApiOperation({ summary: 'Update a custom role in the current tenant' })
   @ApiOkResponse({ description: 'Updated role' })
   updateRole(
@@ -84,6 +87,7 @@ export class AccessControlController {
 
   @Delete('roles/:roleId')
   @Version('1')
+  @RequirePermissions('manage:roles')
   @ApiOperation({ summary: 'Delete an unassigned custom role' })
   @ApiOkResponse({ schema: { example: { success: true } } })
   deleteRole(
@@ -96,6 +100,7 @@ export class AccessControlController {
 
   @Post('roles/assignments')
   @Version('1')
+  @RequirePermissions('manage:roles')
   @ApiOperation({ summary: 'Assign a role to a tenant user' })
   @ApiOkResponse({ schema: { example: { success: true } } })
   assignRole(
@@ -108,6 +113,7 @@ export class AccessControlController {
 
   @Delete('roles/:roleId/users/:userId')
   @Version('1')
+  @RequirePermissions('manage:roles')
   @ApiOperation({ summary: 'Remove a role from a tenant user' })
   @ApiOkResponse({ schema: { example: { success: true } } })
   removeRoleFromUser(
