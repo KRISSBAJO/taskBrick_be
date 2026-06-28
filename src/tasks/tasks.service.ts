@@ -540,6 +540,12 @@ export class TasksService {
       dto.status,
       dto.completedAt
     );
+    const nextBoardColumnId =
+      dto.status !== undefined
+        ? await this.resolveDefaultBoardColumnId(user.tenantId, nextProjectId, dto.status)
+        : projectChanged
+          ? null
+          : undefined;
 
     const updated = await this.prisma.task.update({
       where: { id: taskId },
@@ -554,6 +560,7 @@ export class TasksService {
         description: dto.description,
         type: dto.type,
         status: dto.status,
+        boardColumnId: nextBoardColumnId,
         priority: dto.priority,
         startDate:
           dto.startDate === undefined ? undefined : dto.startDate ? new Date(dto.startDate) : null,
@@ -2413,6 +2420,44 @@ export class TasksService {
     }
 
     throw new ForbiddenException('You do not have permission to modify this saved view');
+  }
+
+  private async resolveDefaultBoardColumnId(tenantId: string, projectId: string, status: TaskStatus) {
+    const board = await this.prisma.board.findFirst({
+      where: {
+        tenantId,
+        projectId,
+        isDefault: true
+      },
+      select: {
+        columns: {
+          where: { status },
+          select: { id: true },
+          take: 1
+        }
+      }
+    });
+
+    if (board?.columns[0]) {
+      return board.columns[0].id;
+    }
+
+    const fallbackBoard = await this.prisma.board.findFirst({
+      where: {
+        tenantId,
+        projectId
+      },
+      orderBy: [{ createdAt: 'asc' }],
+      select: {
+        columns: {
+          where: { status },
+          select: { id: true },
+          take: 1
+        }
+      }
+    });
+
+    return fallbackBoard?.columns[0]?.id ?? null;
   }
 
   private async getTenantTaskOrThrow(tenantId: string, taskId: string) {
