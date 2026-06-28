@@ -281,21 +281,24 @@ export class TeamsService {
     await this.getTenantTeamOrThrow(user.tenantId, teamId);
     await this.assertUserBelongsToTenant(user.tenantId, dto.userId);
 
-    await this.prisma.teamMember.upsert({
-      where: {
-        teamId_userId: {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.teamMember.upsert({
+        where: {
+          teamId_userId: {
+            teamId,
+            userId: dto.userId
+          }
+        },
+        update: {
+          role: dto.role
+        },
+        create: {
           teamId,
-          userId: dto.userId
-        }
-      },
-      update: {
-        role: dto.role
-      },
-      create: {
-        teamId,
-        userId: dto.userId,
-        role: dto.role
-      },
+          userId: dto.userId,
+          role: dto.role
+        },
+      });
+      await this.assignBaselineMemberRoleIfNeeded(tx, user.tenantId, dto.userId);
     });
     const member = await this.getTeamMemberOrThrow(user.tenantId, teamId, dto.userId);
 
@@ -329,6 +332,7 @@ export class TeamsService {
     if (dto.roleIds?.length) {
       await this.assertRolesBelongToTenant(user.tenantId, dto.roleIds);
     }
+    const explicitRoleIds = this.unique(dto.roleIds ?? []);
 
     const invited = await this.prisma.$transaction(async (tx) => {
       const existing = await tx.user.findUnique({
@@ -365,14 +369,16 @@ export class TeamsService {
             select: { id: true, status: true }
           });
 
-      if (dto.roleIds?.length) {
+      if (explicitRoleIds.length) {
         await tx.userRole.createMany({
-          data: dto.roleIds.map((roleId) => ({
+          data: explicitRoleIds.map((roleId) => ({
             userId: memberUser.id,
             roleId
           })),
           skipDuplicates: true
         });
+      } else {
+        await this.assignBaselineMemberRoleIfNeeded(tx, user.tenantId, memberUser.id);
       }
 
       await tx.teamMember.upsert({
@@ -408,7 +414,7 @@ export class TeamsService {
         userId: invited.id,
         email,
         teamRole: dto.teamRole,
-        roleIds: dto.roleIds ?? []
+        roleIds: explicitRoleIds
       },
       ipAddress: meta.ipAddress,
       userAgent: meta.userAgent
@@ -617,6 +623,35 @@ export class TeamsService {
     }
   }
 
+  private async assignBaselineMemberRoleIfNeeded(
+    tx: Prisma.TransactionClient,
+    tenantId: string,
+    userId: string
+  ) {
+    const existingRoleCount = await tx.userRole.count({
+      where: { userId }
+    });
+
+    if (existingRoleCount > 0) return;
+
+    const memberRole = await tx.role.findUnique({
+      where: {
+        tenantId_name: {
+          tenantId,
+          name: 'Member'
+        }
+      },
+      select: { id: true }
+    });
+
+    if (!memberRole) return;
+
+    await tx.userRole.createMany({
+      data: [{ userId, roleId: memberRole.id }],
+      skipDuplicates: true
+    });
+  }
+
   private async getTeamMemberOrThrow(tenantId: string, teamId: string, userId: string) {
     const member = await this.prisma.teamMember.findFirst({
       where: {
@@ -691,5 +726,9 @@ export class TeamsService {
   private displayActor(user: AuthenticatedUser) {
     const name = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim();
     return name || user.email;
+  }
+
+  private unique(values: string[]) {
+    return [...new Set(values.map((value) => value.trim()).filter(Boolean))];
   }
 }

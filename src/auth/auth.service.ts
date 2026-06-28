@@ -1193,6 +1193,8 @@ export class AuthService {
   }
 
   private async loadAuthenticatedUser(userId: string) {
+    await this.ensureBaselineMemberRole(userId);
+
     const [user, platformAdmin] = await Promise.all([
       this.prisma.user.findUniqueOrThrow({
         where: { id: userId },
@@ -1257,6 +1259,42 @@ export class AuthService {
       this.logger.debug(`Platform admin profile unavailable: ${error instanceof Error ? error.message : 'unknown error'}`);
       return null;
     }
+  }
+
+  private async ensureBaselineMemberRole(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        tenantId: true,
+        status: true,
+        _count: {
+          select: {
+            roles: true
+          }
+        }
+      }
+    });
+
+    if (!user || user._count.roles > 0) return;
+    if (user.status !== UserStatus.ACTIVE && user.status !== UserStatus.INVITED) return;
+
+    const memberRole = await this.prisma.role.findUnique({
+      where: {
+        tenantId_name: {
+          tenantId: user.tenantId,
+          name: 'Member'
+        }
+      },
+      select: { id: true }
+    });
+
+    if (!memberRole) return;
+
+    await this.prisma.userRole.createMany({
+      data: [{ userId: user.id, roleId: memberRole.id }],
+      skipDuplicates: true
+    });
   }
 
   private isTenantLoginAllowed(status: TenantStatus) {

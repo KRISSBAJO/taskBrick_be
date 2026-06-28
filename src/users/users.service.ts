@@ -129,6 +129,7 @@ export class UsersService {
     if (dto.roleIds?.length) {
       await this.assertRolesBelongToTenant(user.tenantId, dto.roleIds);
     }
+    const inviteRoleIds = await this.resolveInviteRoleIds(user.tenantId, dto.roleIds);
 
     const invited = await this.prisma.$transaction(async (tx) => {
       const created = await tx.user.create({
@@ -141,9 +142,9 @@ export class UsersService {
         }
       });
 
-      if (dto.roleIds?.length) {
+      if (inviteRoleIds.length) {
         await tx.userRole.createMany({
-          data: dto.roleIds.map((roleId) => ({
+          data: inviteRoleIds.map((roleId) => ({
             userId: created.id,
             roleId
           })),
@@ -162,7 +163,7 @@ export class UsersService {
       entityId: invited.id,
       newValue: {
         email: invited.email,
-        roleIds: dto.roleIds ?? []
+        roleIds: inviteRoleIds
       },
       ipAddress: meta.ipAddress,
       userAgent: meta.userAgent
@@ -183,6 +184,7 @@ export class UsersService {
     meta: RequestMeta
   ): Promise<BulkInviteUsersResponse> {
     const defaultRoleIds = this.unique(dto.defaultRoleIds ?? []);
+    const fallbackMemberRoleId = await this.getDefaultMemberRoleId(user.tenantId);
     const allRoleIds = this.unique([
       ...defaultRoleIds,
       ...dto.users.flatMap((item) => item.roleIds ?? [])
@@ -241,9 +243,13 @@ export class UsersService {
               continue;
             }
 
-            if (rowRoleIds.length) {
+            const effectiveRoleIds = rowRoleIds.length
+              ? rowRoleIds
+              : await this.resolveExistingUserFallbackRoleIds(tx, existing.id, fallbackMemberRoleId);
+
+            if (effectiveRoleIds.length) {
               await tx.userRole.createMany({
-                data: rowRoleIds.map((roleId) => ({
+                data: effectiveRoleIds.map((roleId) => ({
                   userId: existing.id,
                   roleId
                 })),
@@ -255,7 +261,7 @@ export class UsersService {
               email,
               status: 'UPDATED',
               userId: existing.id,
-              message: rowRoleIds.length
+              message: effectiveRoleIds.length
                 ? 'Existing tenant user found; missing roles were attached.'
                 : 'Existing tenant user found.'
             });
@@ -275,9 +281,15 @@ export class UsersService {
             }
           });
 
-          if (rowRoleIds.length) {
+          const effectiveRoleIds = rowRoleIds.length
+            ? rowRoleIds
+            : fallbackMemberRoleId
+              ? [fallbackMemberRoleId]
+              : [];
+
+          if (effectiveRoleIds.length) {
             await tx.userRole.createMany({
-              data: rowRoleIds.map((roleId) => ({
+              data: effectiveRoleIds.map((roleId) => ({
                 userId: created.id,
                 roleId
               })),
@@ -460,6 +472,42 @@ export class UsersService {
     if (roles.length !== roleIds.length) {
       throw new NotFoundException('One or more roles were not found');
     }
+  }
+
+  private async resolveInviteRoleIds(tenantId: string, roleIds: string[] | undefined) {
+    const uniqueRoleIds = this.unique(roleIds ?? []);
+    if (uniqueRoleIds.length) return uniqueRoleIds;
+
+    const memberRoleId = await this.getDefaultMemberRoleId(tenantId);
+    return memberRoleId ? [memberRoleId] : [];
+  }
+
+  private async getDefaultMemberRoleId(tenantId: string) {
+    const role = await this.prisma.role.findUnique({
+      where: {
+        tenantId_name: {
+          tenantId,
+          name: 'Member'
+        }
+      },
+      select: { id: true }
+    });
+
+    return role?.id ?? null;
+  }
+
+  private async resolveExistingUserFallbackRoleIds(
+    tx: Prisma.TransactionClient,
+    userId: string,
+    fallbackMemberRoleId: string | null
+  ) {
+    if (!fallbackMemberRoleId) return [];
+
+    const existingRoleCount = await tx.userRole.count({
+      where: { userId }
+    });
+
+    return existingRoleCount === 0 ? [fallbackMemberRoleId] : [];
   }
 
   private nameOrFallback(name: string | undefined, email: string) {
