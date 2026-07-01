@@ -157,13 +157,14 @@ export class AuthService {
       const token = await this.createEmailVerificationToken(result.user.id, result.tenant.id, this.emailVerificationTtlMinutes);
       const verificationUrl = this.authUrl('/verify-email', token);
       const mail = await this.sendVerificationEmail(result.user.email, result.user.firstName, verificationUrl);
+      const delivery = this.mailDeliverySummary(mail);
       await this.auditService.record({
         tenantId: result.tenant.id,
         actorId: result.user.id,
         action: 'auth.email_verification_requested',
         entityType: 'User',
         entityId: result.user.id,
-        newValue: { mailSent: mail.sent },
+        newValue: { delivery, mailSent: mail.sent },
         ipAddress: meta.ipAddress,
         userAgent: meta.userAgent
       });
@@ -174,7 +175,7 @@ export class AuthService {
         severity: SecurityEventSeverity.INFO,
         subjectType: 'User',
         subjectId: result.user.id,
-        metadata: { email: result.user.email, mailSent: mail.sent },
+        metadata: { delivery, email: result.user.email, mailSent: mail.sent },
         meta
       });
 
@@ -183,7 +184,11 @@ export class AuthService {
         requiresEmailVerification: true,
         email: result.user.email,
         tenantSlug: result.tenant.slug,
-        message: 'Workspace created. Check your email to verify the owner account before signing in.',
+        delivery,
+        message:
+          delivery.status === 'sent'
+            ? 'Workspace created. Check your email to verify the owner account before signing in.'
+            : 'Workspace created, but the verification email could not be delivered. Use resend verification or contact support.',
         devLink: this.developmentLink(verificationUrl)
       };
     }
@@ -755,13 +760,14 @@ export class AuthService {
         const token = await this.createEmailVerificationToken(user.id, user.tenantId, this.emailVerificationTtlMinutes);
         const verificationUrl = this.authUrl('/verify-email', token);
         const mail = await this.sendVerificationEmail(user.email, user.firstName, verificationUrl);
+        const delivery = this.mailDeliverySummary(mail);
         await this.auditService.record({
           tenantId: user.tenantId,
           actorId: user.id,
           action: 'auth.email_verification_requested',
           entityType: 'User',
           entityId: user.id,
-          newValue: { mailSent: mail.sent },
+          newValue: { delivery, mailSent: mail.sent },
           ipAddress: meta.ipAddress,
           userAgent: meta.userAgent
         });
@@ -772,7 +778,7 @@ export class AuthService {
           severity: SecurityEventSeverity.INFO,
           subjectType: 'User',
           subjectId: user.id,
-          metadata: { email: user.email, mailSent: mail.sent, resend: true },
+          metadata: { delivery, email: user.email, mailSent: mail.sent, resend: true },
           meta
         });
 

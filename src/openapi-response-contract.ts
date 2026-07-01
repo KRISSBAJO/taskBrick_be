@@ -494,6 +494,39 @@ export const openApiComponentSchemas: Record<string, OpenApiSchema> = {
       "devLink": {
         "type": "string"
       },
+      "delivery": {
+        "properties": {
+          "channel": {
+            "enum": [
+              "email"
+            ],
+            "type": "string"
+          },
+          "error": {
+            "type": "string"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "skipped": {
+            "type": "boolean"
+          },
+          "status": {
+            "enum": [
+              "sent",
+              "skipped",
+              "failed"
+            ],
+            "type": "string"
+          }
+        },
+        "required": [
+          "channel",
+          "provider",
+          "status"
+        ],
+        "type": "object"
+      },
       "email": {
         "type": "string"
       },
