@@ -14,6 +14,7 @@ import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interfa
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
 import { RealtimeGateway } from '../collaboration/realtime.gateway';
 import { PrismaService } from '../prisma/prisma.service';
+import { QaService } from '../qa/qa.service';
 import { CompleteSprintDto } from './dto/complete-sprint.dto';
 import { CreateBoardColumnDto } from './dto/create-board-column.dto';
 import { CreateBoardDto } from './dto/create-board.dto';
@@ -316,7 +317,8 @@ export class AgileService {
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
     private readonly realtimeGateway: RealtimeGateway,
-    private readonly projectAccessPolicy: ProjectAccessPolicyService
+    private readonly projectAccessPolicy: ProjectAccessPolicyService,
+    private readonly qaService: QaService
   ) {}
 
   async listSprints(user: AuthenticatedUser, query: SprintQueryDto) {
@@ -1000,6 +1002,9 @@ export class AgileService {
     const board = await this.ensureDefaultBoard(user.tenantId, task.projectId);
     const targetColumn = board.columns.find((column) => column.status === dto.status);
     await this.assertWipLimitAllowsMove(user.tenantId, task.projectId, task.status, dto.status);
+    if (dto.status === TaskStatus.DONE && task.status !== TaskStatus.DONE) {
+      await this.qaService.assertTaskDoneGate(user, taskId, task.projectId);
+    }
 
     const completedAt = this.resolveCompletedAt(task.completedAt, dto.status);
     const updated = await this.prisma.$transaction(async (tx) => {
@@ -1068,6 +1073,10 @@ export class AgileService {
       }
     } else if (nextStatus) {
       await this.assertWipLimitAllowsMove(user.tenantId, task.projectId, task.status, nextStatus);
+    }
+
+    if (nextStatus === TaskStatus.DONE && task.status !== TaskStatus.DONE) {
+      await this.qaService.assertTaskDoneGate(user, taskId, task.projectId);
     }
 
     if (dto.sprintId) {

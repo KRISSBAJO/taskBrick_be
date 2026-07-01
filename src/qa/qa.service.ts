@@ -1000,7 +1000,7 @@ export class QaService {
     dto: UpdateQaProjectSettingsDto,
     meta: RequestMeta
   ) {
-    await this.projectAccessPolicy.assertProjectAction(user, projectId, 'viewProject');
+    await this.projectAccessPolicy.assertProjectAction(user, projectId, 'editProject');
     const before = await this.getProjectSettings(user, projectId);
     const updated = await this.prisma.project.update({
       where: { id: projectId },

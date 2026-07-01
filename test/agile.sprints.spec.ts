@@ -63,15 +63,19 @@ function createService() {
     assertProjectAction: jest.fn<AuditRecord>(),
     projectAccessWhere: jest.fn()
   };
+  const qaService = {
+    assertTaskDoneGate: jest.fn<AuditRecord>()
+  };
 
   const service = new AgileService(
     prisma as never,
     auditService as never,
     {} as never,
-    projectAccessPolicy as never
+    projectAccessPolicy as never,
+    qaService as never
   );
 
-  return { auditService, prisma, projectAccessPolicy, service };
+  return { auditService, prisma, projectAccessPolicy, qaService, service };
 }
 
 describe('AgileService sprint lifecycle guardrails', () => {

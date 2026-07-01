@@ -2045,6 +2045,14 @@ export class TasksService {
       await this.assertLabelsBelongToTenant(user.tenantId, dto.labelIds);
     }
 
+    if (dto.status === TaskStatus.DONE) {
+      await Promise.all(
+        tasks
+          .filter((task) => task.status !== TaskStatus.DONE)
+          .map((task) => this.qaService.assertTaskDoneGate(user, task.id, task.projectId))
+      );
+    }
+
     const data: Prisma.TaskUncheckedUpdateManyInput = {};
     if (dto.status !== undefined) data.status = dto.status;
     if (dto.priority !== undefined) data.priority = dto.priority;
