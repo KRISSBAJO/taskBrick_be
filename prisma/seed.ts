@@ -518,6 +518,48 @@ async function seedPlatformOwner(userId: string, email: string) {
   console.log(`Seeded platform owner email=${email}`);
 }
 
+function envValue(name: string) {
+  return (process.env[name] ?? '').trim();
+}
+
+function nameFromEmail(email: string) {
+  const localPart = email.split('@')[0] ?? 'platform.admin';
+  const [first = 'Platform', ...rest] = localPart.split(/[._-]+/).filter(Boolean);
+  const title = (value: string) => value ? `${value[0].toUpperCase()}${value.slice(1).toLowerCase()}` : '';
+
+  return {
+    firstName: title(envValue('SEED_PLATFORM_ADMIN_FIRST_NAME') || first),
+    lastName: title(envValue('SEED_PLATFORM_ADMIN_LAST_NAME') || rest.join(' ') || 'Admin')
+  };
+}
+
+async function ensureTenantOwnerRole(tenantId: string, userId: string) {
+  const ownerRole = await prisma.role.findUnique({
+    where: {
+      tenantId_name: {
+        tenantId,
+        name: 'Owner'
+      }
+    }
+  });
+
+  if (!ownerRole) return;
+
+  await prisma.userRole.upsert({
+    where: {
+      userId_roleId: {
+        userId,
+        roleId: ownerRole.id
+      }
+    },
+    update: {},
+    create: {
+      userId,
+      roleId: ownerRole.id
+    }
+  });
+}
+
 async function seedExistingPlatformOwner() {
   const email = (process.env.SEED_PLATFORM_ADMIN_EMAIL ?? process.env.SEED_ADMIN_EMAIL ?? '').toLowerCase().trim();
   if (!email) {
@@ -525,14 +567,94 @@ async function seedExistingPlatformOwner() {
     return;
   }
 
-  const user = await prisma.user.findFirst({
-    where: { email },
+  const password = envValue('SEED_PLATFORM_ADMIN_PASSWORD');
+  const tenantSlug = (envValue('SEED_PLATFORM_ADMIN_TENANT_SLUG') || (password ? 'platform' : '')).toLowerCase();
+  const tenantName = envValue('SEED_PLATFORM_ADMIN_TENANT_NAME') || 'TaskBricks Platform';
+  const tenant = tenantSlug
+    ? await prisma.tenant.upsert({
+        where: { slug: tenantSlug },
+        update: {
+          name: tenantName,
+          status: 'ACTIVE'
+        },
+        create: {
+          name: tenantName,
+          slug: tenantSlug,
+          status: 'ACTIVE'
+        }
+      })
+    : null;
+
+  if (tenant) {
+    await seedTenantDefaults(tenant.id);
+  }
+
+  let user = await prisma.user.findFirst({
+    where: tenant ? { tenantId: tenant.id, email } : { email },
     select: { id: true, email: true }
   });
 
-  if (!user) {
+  if (!user && !password) {
     console.log(`Platform admin seed skipped. No existing user found for ${email}.`);
     return;
+  }
+
+  if (!user) {
+    const { firstName, lastName } = nameFromEmail(email);
+    const passwordHash = await bcrypt.hash(password, 12);
+    const targetTenant = tenant ?? await prisma.tenant.upsert({
+      where: { slug: 'platform' },
+      update: {
+        name: tenantName,
+        status: 'ACTIVE'
+      },
+      create: {
+        name: tenantName,
+        slug: 'platform',
+        status: 'ACTIVE'
+      }
+    });
+
+    await seedTenantDefaults(targetTenant.id);
+
+    user = await prisma.user.upsert({
+      where: {
+        tenantId_email: {
+          tenantId: targetTenant.id,
+          email
+        }
+      },
+      update: {
+        passwordHash,
+        status: UserStatus.ACTIVE,
+        emailVerifiedAt: new Date()
+      },
+      create: {
+        tenantId: targetTenant.id,
+        email,
+        passwordHash,
+        firstName,
+        lastName,
+        status: UserStatus.ACTIVE,
+        emailVerifiedAt: new Date()
+      },
+      select: { id: true, email: true }
+    });
+
+    await ensureTenantOwnerRole(targetTenant.id, user.id);
+  } else if (password) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: await bcrypt.hash(password, 12),
+        status: UserStatus.ACTIVE,
+        emailVerifiedAt: new Date()
+      }
+    });
+
+    if (tenant) {
+      await ensureTenantOwnerRole(tenant.id, user.id);
+    }
   }
 
   await seedPlatformOwner(user.id, user.email);
