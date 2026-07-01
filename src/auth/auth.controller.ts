@@ -209,6 +209,8 @@ export class AuthController {
   private getRequestMeta(request: Request) {
     return {
       ipAddress: request.ip,
+      origin: request.header('origin'),
+      referer: request.header('referer'),
       userAgent: request.header('user-agent')
     };
   }

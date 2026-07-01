@@ -12497,6 +12497,102 @@
         ]
       }
     },
+    "/api/v1/users/{userId}/resend-invite": {
+      "post": {
+        "operationId": "Users_resendInvitation",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Invitation delivery result"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Resend a pending tenant user invitation",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/{userId}/reinvite": {
+      "post": {
+        "operationId": "Users_reinviteUser",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Invitation delivery result"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Reactivate a cancelled tenant user invitation",
+        "tags": [
+          "users"
+        ]
+      }
+    },
+    "/api/v1/users/{userId}/invite": {
+      "delete": {
+        "operationId": "Users_cancelInvitation",
+        "parameters": [
+          {
+            "name": "userId",
+            "required": true,
+            "in": "path",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "example": {
+                    "success": true
+                  }
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Cancel a pending tenant user invitation",
+        "tags": [
+          "users"
+        ]
+      }
+    },
     "/api/v1/users/{userId}": {
       "get": {
         "operationId": "Users_getUser",

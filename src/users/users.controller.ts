@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Patch,
@@ -103,6 +104,51 @@ export class UsersController {
     return this.usersService.bulkInviteUsers(user, dto, this.getRequestMeta(request));
   }
 
+  @Post(':userId/resend-invite')
+  @Version('1')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('manage:users')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Resend a pending tenant user invitation' })
+  @ApiOkResponse({ description: 'Invitation delivery result' })
+  resendInvitation(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('userId') userId: string,
+    @Req() request: Request
+  ) {
+    return this.usersService.resendInvitation(user, userId, this.getRequestMeta(request));
+  }
+
+  @Post(':userId/reinvite')
+  @Version('1')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('manage:users')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Reactivate a cancelled tenant user invitation' })
+  @ApiOkResponse({ description: 'Invitation delivery result' })
+  reinviteUser(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('userId') userId: string,
+    @Req() request: Request
+  ) {
+    return this.usersService.reinviteUser(user, userId, this.getRequestMeta(request));
+  }
+
+  @Delete(':userId/invite')
+  @Version('1')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('manage:users')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Cancel a pending tenant user invitation' })
+  @ApiOkResponse({ schema: { example: { success: true } } })
+  cancelInvitation(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('userId') userId: string,
+    @Req() request: Request
+  ) {
+    return this.usersService.cancelInvitation(user, userId, this.getRequestMeta(request));
+  }
+
   @Get(':userId')
   @Version('1')
   @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -136,6 +182,8 @@ export class UsersController {
   private getRequestMeta(request: Request) {
     return {
       ipAddress: request.ip,
+      origin: request.header('origin'),
+      referer: request.header('referer'),
       userAgent: request.header('user-agent')
     };
   }

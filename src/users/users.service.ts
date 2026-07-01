@@ -12,6 +12,8 @@ import { UpdateUserDto } from './dto/update-user.dto';
 
 interface RequestMeta {
   ipAddress?: string | null;
+  origin?: string | null;
+  referer?: string | null;
   userAgent?: string | null;
 }
 
@@ -358,6 +360,134 @@ export class UsersService {
     });
 
     return summary;
+  }
+
+  async resendInvitation(user: AuthenticatedUser, userId: string, meta: RequestMeta) {
+    const target = await this.getTenantUserOrThrow(user.tenantId, userId);
+
+    if (target.status !== UserStatus.INVITED) {
+      throw new ConflictException('Only pending tenant invitations can be resent');
+    }
+
+    const invitation = await this.authService.sendInvitation(target.id, user.id, meta);
+
+    await this.auditService.record({
+      tenantId: user.tenantId,
+      actorId: user.id,
+      action: 'user.invite_resend',
+      entityType: 'User',
+      entityId: target.id,
+      newValue: {
+        email: target.email,
+        delivery: invitation.delivery?.channel ?? 'email',
+        deliveryStatus: invitation.delivery
+      },
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent
+    });
+
+    return {
+      success: true,
+      delivery: invitation.delivery?.channel ?? 'email',
+      deliveryStatus: invitation.delivery,
+      user: await this.getTenantUserOrThrow(user.tenantId, target.id)
+    };
+  }
+
+  async cancelInvitation(user: AuthenticatedUser, userId: string, meta: RequestMeta) {
+    if (user.id === userId) {
+      throw new ConflictException('You cannot cancel your own invitation');
+    }
+
+    const target = await this.getTenantUserOrThrow(user.tenantId, userId);
+
+    if (target.status !== UserStatus.INVITED) {
+      throw new ConflictException('Only pending tenant invitations can be cancelled');
+    }
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: target.id },
+        data: { status: UserStatus.DEACTIVATED }
+      }),
+      this.prisma.emailVerificationToken.updateMany({
+        where: {
+          tenantId: user.tenantId,
+          userId: target.id,
+          usedAt: null
+        },
+        data: {
+          usedAt: new Date()
+        }
+      })
+    ]);
+
+    await this.auditService.record({
+      tenantId: user.tenantId,
+      actorId: user.id,
+      action: 'user.invite_cancel',
+      entityType: 'User',
+      entityId: target.id,
+      oldValue: {
+        email: target.email,
+        status: target.status
+      },
+      newValue: {
+        status: UserStatus.DEACTIVATED
+      },
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent
+    });
+
+    return {
+      success: true,
+      user: await this.getTenantUserOrThrow(user.tenantId, target.id)
+    };
+  }
+
+  async reinviteUser(user: AuthenticatedUser, userId: string, meta: RequestMeta) {
+    const target = await this.getTenantUserOrThrow(user.tenantId, userId);
+
+    if (target.status === UserStatus.ACTIVE) {
+      throw new ConflictException('Active users do not need a tenant invitation');
+    }
+
+    if (target.status !== UserStatus.DEACTIVATED && target.status !== UserStatus.INVITED) {
+      throw new ConflictException('This user cannot be reinvited from its current state');
+    }
+
+    await this.prisma.user.update({
+      where: { id: target.id },
+      data: { status: UserStatus.INVITED }
+    });
+
+    const invitation = await this.authService.sendInvitation(target.id, user.id, meta);
+
+    await this.auditService.record({
+      tenantId: user.tenantId,
+      actorId: user.id,
+      action: target.status === UserStatus.DEACTIVATED ? 'user.invite_reactivate' : 'user.invite_resend',
+      entityType: 'User',
+      entityId: target.id,
+      oldValue: {
+        email: target.email,
+        status: target.status
+      },
+      newValue: {
+        status: UserStatus.INVITED,
+        delivery: invitation.delivery?.channel ?? 'email',
+        deliveryStatus: invitation.delivery
+      },
+      ipAddress: meta.ipAddress,
+      userAgent: meta.userAgent
+    });
+
+    return {
+      success: true,
+      delivery: invitation.delivery?.channel ?? 'email',
+      deliveryStatus: invitation.delivery,
+      user: await this.getTenantUserOrThrow(user.tenantId, target.id)
+    };
   }
 
   async updateUser(

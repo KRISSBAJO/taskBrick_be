@@ -18,6 +18,8 @@ import { UpdateTeamDto } from './dto/update-team.dto';
 
 interface RequestMeta {
   ipAddress?: string | null;
+  origin?: string | null;
+  referer?: string | null;
   userAgent?: string | null;
 }
 

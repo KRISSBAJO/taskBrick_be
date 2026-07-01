@@ -32,6 +32,8 @@ import { JwtPayload } from './interfaces/jwt-payload.interface';
 
 interface RequestMeta {
   ipAddress?: string | null;
+  origin?: string | null;
+  referer?: string | null;
   userAgent?: string | null;
 }
 
@@ -155,7 +157,7 @@ export class AuthService {
 
     if (requireVerification) {
       const token = await this.createEmailVerificationToken(result.user.id, result.tenant.id, this.emailVerificationTtlMinutes);
-      const verificationUrl = this.authUrl('/verify-email', token);
+      const verificationUrl = this.authUrl('/verify-email', token, meta);
       const mail = await this.sendVerificationEmail(result.user.email, result.user.firstName, verificationUrl);
       const delivery = this.mailDeliverySummary(mail);
       await this.auditService.record({
@@ -530,7 +532,7 @@ export class AuthService {
 
       if (user?.passwordHash && user.status !== UserStatus.DEACTIVATED) {
         const token = await this.createPasswordResetToken(user.id, user.tenantId, this.passwordResetTtlMinutes);
-        const resetUrl = this.authUrl('/reset-password', token);
+        const resetUrl = this.authUrl('/reset-password', token, meta);
         const mail = await this.sendPasswordResetEmail(user.email, user.firstName, resetUrl);
         await this.auditService.record({
           tenantId: user.tenantId,
@@ -758,7 +760,7 @@ export class AuthService {
 
       if (user && !user.emailVerifiedAt && user.status !== UserStatus.DEACTIVATED) {
         const token = await this.createEmailVerificationToken(user.id, user.tenantId, this.emailVerificationTtlMinutes);
-        const verificationUrl = this.authUrl('/verify-email', token);
+        const verificationUrl = this.authUrl('/verify-email', token, meta);
         const mail = await this.sendVerificationEmail(user.email, user.firstName, verificationUrl);
         const delivery = this.mailDeliverySummary(mail);
         await this.auditService.record({
@@ -855,7 +857,7 @@ export class AuthService {
     }
 
     const token = await this.createEmailVerificationToken(user.id, user.tenantId, this.inviteTtlMinutes);
-    const inviteUrl = this.authUrl('/accept-invite', token);
+    const inviteUrl = this.authUrl('/accept-invite', token, meta);
     const mail = await this.sendInviteEmail(user.email, user.firstName, user.tenant.name, inviteUrl);
     const delivery = this.mailDeliverySummary(mail);
 
@@ -996,11 +998,59 @@ export class AuthService {
     return new Date(Date.now() + minutes * 60 * 1000);
   }
 
-  private authUrl(path: '/verify-email' | '/reset-password' | '/accept-invite', token: string) {
-    const frontendUrl = this.configService.get<string>('app.frontendUrl') || 'http://localhost:3000';
+  private authUrl(path: '/verify-email' | '/reset-password' | '/accept-invite', token: string, meta?: RequestMeta) {
+    const frontendUrl = this.resolveFrontendUrl(meta);
     const url = new URL(path, `${frontendUrl.replace(/\/$/, '')}/`);
     url.searchParams.set('token', token);
     return url.toString();
+  }
+
+  private resolveFrontendUrl(meta?: RequestMeta) {
+    const configured = this.configService.get<string>('app.frontendUrl')?.trim();
+    if (this.isBrowserUrl(configured)) {
+      return configured;
+    }
+
+    const origin = meta?.origin?.trim();
+    if (this.isBrowserUrl(origin) && !this.isBackendOrigin(origin)) {
+      return origin;
+    }
+
+    const refererOrigin = this.originFromUrl(meta?.referer);
+    if (this.isBrowserUrl(refererOrigin) && !this.isBackendOrigin(refererOrigin)) {
+      return refererOrigin;
+    }
+
+    const corsOrigin = this.configService
+      .get<string[]>('app.corsOrigins', [])
+      .find((item) => this.isBrowserUrl(item) && !this.isBackendOrigin(item));
+
+    if (corsOrigin) {
+      return corsOrigin;
+    }
+
+    if (this.configService.get<string>('app.nodeEnv') === 'production') {
+      this.logger.warn('FRONTEND_URL is not configured; auth emails will fall back to http://localhost:3000');
+    }
+
+    return 'http://localhost:3000';
+  }
+
+  private originFromUrl(value?: string | null) {
+    if (!value) return undefined;
+    try {
+      return new URL(value).origin;
+    } catch {
+      return undefined;
+    }
+  }
+
+  private isBrowserUrl(value?: string | null): value is string {
+    return Boolean(value && /^https?:\/\//i.test(value));
+  }
+
+  private isBackendOrigin(value: string) {
+    return /localhost:4070|127\.0\.0\.1:4070|onrender\.com/i.test(value);
   }
 
   private developmentLink(url: string) {
@@ -1076,6 +1126,8 @@ export class AuthService {
   }
 
   private authEmailTemplate(input: { title: string; intro: string; ctaLabel: string; url: string }) {
+    const safeUrl = this.escapeHtml(input.url);
+
     return `
       <div style="font-family:Inter,Arial,sans-serif;background:#fffdf3;padding:32px;color:#111111">
         <div style="max-width:560px;margin:0 auto;background:#ffffff;border:1px solid #e8e0c8;border-radius:18px;overflow:hidden">
@@ -1085,9 +1137,9 @@ export class AuthService {
           </div>
           <div style="padding:28px">
             <p style="font-size:15px;line-height:1.6;color:#4b473f">${input.intro}</p>
-            <a href="${input.url}" style="display:inline-block;margin-top:18px;background:#ffd400;color:#111111;text-decoration:none;font-weight:900;border-radius:12px;padding:14px 18px">${this.escapeHtml(input.ctaLabel)}</a>
+            <a href="${safeUrl}" style="display:inline-block;margin-top:18px;background:#ffd400;color:#111111;text-decoration:none;font-weight:900;border-radius:12px;padding:14px 18px">${this.escapeHtml(input.ctaLabel)}</a>
             <p style="margin-top:22px;font-size:12px;line-height:1.6;color:#68645b">If the button does not work, copy and paste this URL into your browser:</p>
-            <p style="word-break:break-all;font-size:12px;color:#111111">${input.url}</p>
+            <p style="word-break:break-all;font-size:12px;color:#111111">${safeUrl}</p>
           </div>
         </div>
       </div>
