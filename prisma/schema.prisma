@@ -151,6 +151,77 @@ enum TaskType {
   MILESTONE
 }
 
+enum QaTestCasePriority {
+  LOW
+  MEDIUM
+  HIGH
+  CRITICAL
+}
+
+enum QaTestCaseType {
+  FUNCTIONAL
+  REGRESSION
+  SMOKE
+  INTEGRATION
+  PERFORMANCE
+  SECURITY
+  ACCESSIBILITY
+  ACCEPTANCE
+}
+
+enum QaTestCaseStatus {
+  DRAFT
+  ACTIVE
+  DEPRECATED
+  ARCHIVED
+}
+
+enum QaTaskLinkType {
+  COVERS
+  REGRESSION
+  ACCEPTANCE
+  BLOCKER
+}
+
+enum QaTestPlanStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+  ARCHIVED
+}
+
+enum QaTestRunSource {
+  MANUAL
+  AUTOMATION
+  CI
+  API
+}
+
+enum QaTestRunStatus {
+  QUEUED
+  RUNNING
+  COMPLETED
+  CANCELLED
+}
+
+enum QaExecutionStatus {
+  UNTESTED
+  PASSED
+  FAILED
+  BLOCKED
+  SKIPPED
+  FLAKY
+}
+
+enum QaEvidenceType {
+  SCREENSHOT
+  VIDEO
+  LOG
+  FILE
+  LINK
+  NOTE
+}
+
 enum Visibility {
   PRIVATE
   TEAM
@@ -659,6 +730,11 @@ model Tenant {
   internalMailMailboxes InternalMailbox[]
   internalMailMailboxAliases InternalMailboxAlias[]
   internalMailMailboxMembers InternalMailboxMember[]
+  qaTestCases QaTestCase[]
+  qaTestPlans QaTestPlan[]
+  qaTestRuns QaTestRun[]
+  qaTestExecutions QaTestExecution[]
+  qaEvidence QaEvidence[]
 
   @@index([slug])
 }
@@ -815,6 +891,11 @@ model User {
   internalMailRecipients InternalMailRecipient[] @relation("InternalMailRecipientUser")
   internalMailbox InternalMailbox? @relation("InternalMailboxUser")
   internalMailboxMemberships InternalMailboxMember[] @relation("InternalMailboxMemberUser")
+  createdQaTestCases QaTestCase[] @relation("QaTestCaseCreator")
+  createdQaTestPlans QaTestPlan[] @relation("QaTestPlanCreator")
+  triggeredQaTestRuns QaTestRun[] @relation("QaTestRunTrigger")
+  executedQaTests QaTestExecution[] @relation("QaTestExecutionExecutor")
+  createdQaEvidence QaEvidence[] @relation("QaEvidenceCreator")
 
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
@@ -1179,6 +1260,8 @@ model Project {
   timezone    String?
   billingCode String?
   costCenter  String?
+  qaGateEnabled Boolean      @default(false)
+  qaGateMinimumPassRate Int  @default(100)
 
   tenant      Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
@@ -1202,6 +1285,9 @@ model Project {
   activeTimers TimeTimer[]
   resourceAllocations ResourceAllocation[]
   meetings    Meeting[]
+  qaTestCases QaTestCase[]
+  qaTestPlans QaTestPlan[]
+  qaTestRuns QaTestRun[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1413,6 +1499,11 @@ model Task {
   customValues  CustomFieldValue[]
   activities    TaskActivity[]
   meetings      Meeting[]
+  qaLinks       QaTestCaseTaskLink[]
+  qaTestRuns    QaTestRun[]
+  qaExecutions  QaTestExecution[] @relation("QaExecutionTask")
+  qaDefects     QaTestExecution[] @relation("QaExecutionDefectTask")
+  qaEvidence    QaEvidence[]
 
   archivedAt    DateTime?
   deletedAt     DateTime?
@@ -1614,6 +1705,8 @@ model Sprint {
   tasks       Task[]
   meetings    Meeting[]
   retrospectives SprintRetrospective[]
+  qaTestPlans QaTestPlan[]
+  qaTestRuns  QaTestRun[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -1675,6 +1768,209 @@ model SprintRetrospective {
   updatedAt   DateTime @updatedAt
 
   @@index([sprintId])
+}
+
+/* =========================
+   QA / TEST MANAGEMENT
+========================= */
+
+model QaTestCase {
+  id             String             @id @default(cuid())
+  tenantId       String
+  projectId      String
+  createdById    String?
+  title          String
+  description    String?
+  type           QaTestCaseType     @default(FUNCTIONAL)
+  priority       QaTestCasePriority @default(MEDIUM)
+  status         QaTestCaseStatus   @default(ACTIVE)
+  preconditions  String?
+  steps          Json?
+  expectedResult String?
+  tags           String[]           @default([])
+  automationKey  String?
+  estimateMins   Int?
+  metadata       Json?
+  archivedAt     DateTime?
+
+  tenant         Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  project        Project            @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  createdBy      User?              @relation("QaTestCaseCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  taskLinks      QaTestCaseTaskLink[]
+  planItems      QaTestPlanItem[]
+  executions     QaTestExecution[]
+  evidence       QaEvidence[]
+
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  @@index([tenantId])
+  @@index([projectId, status])
+  @@index([automationKey])
+  @@index([tenantId, archivedAt])
+}
+
+model QaTestCaseTaskLink {
+  id         String         @id @default(cuid())
+  testCaseId String
+  taskId     String
+  linkType   QaTaskLinkType @default(COVERS)
+  createdAt  DateTime       @default(now())
+
+  testCase   QaTestCase     @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  task       Task           @relation(fields: [taskId], references: [id], onDelete: Cascade)
+
+  @@unique([testCaseId, taskId, linkType])
+  @@index([taskId])
+}
+
+model QaTestPlan {
+  id          String           @id @default(cuid())
+  tenantId    String
+  projectId   String
+  sprintId    String?
+  createdById String?
+  name        String
+  description String?
+  status      QaTestPlanStatus @default(PLANNED)
+  releaseName String?
+  milestone   String?
+  startDate   DateTime?
+  endDate     DateTime?
+  archivedAt  DateTime?
+  metadata    Json?
+
+  tenant      Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  project     Project          @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sprint      Sprint?          @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+  createdBy   User?            @relation("QaTestPlanCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  items       QaTestPlanItem[]
+  runs        QaTestRun[]
+
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([tenantId])
+  @@index([projectId, status])
+  @@index([sprintId])
+  @@index([tenantId, archivedAt])
+}
+
+model QaTestPlanItem {
+  id         String     @id @default(cuid())
+  planId     String
+  testCaseId String
+  sortOrder  Int        @default(0)
+  createdAt  DateTime   @default(now())
+
+  plan       QaTestPlan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  testCase   QaTestCase @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, testCaseId])
+  @@index([testCaseId])
+}
+
+model QaTestRun {
+  id            String          @id @default(cuid())
+  tenantId      String
+  projectId     String
+  sprintId      String?
+  planId        String?
+  taskId        String?
+  triggeredById String?
+  name          String
+  source        QaTestRunSource @default(MANUAL)
+  status        QaTestRunStatus @default(QUEUED)
+  provider      String?
+  externalRunId String?
+  environment   String?
+  buildVersion  String?
+  summary       Json?
+  startedAt     DateTime?
+  completedAt   DateTime?
+
+  tenant        Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  project       Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  sprint        Sprint?         @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+  plan          QaTestPlan?     @relation(fields: [planId], references: [id], onDelete: SetNull)
+  task          Task?           @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  triggeredBy   User?           @relation("QaTestRunTrigger", fields: [triggeredById], references: [id], onDelete: SetNull)
+  executions    QaTestExecution[]
+
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([tenantId])
+  @@index([projectId, status])
+  @@index([sprintId])
+  @@index([planId])
+  @@index([externalRunId])
+}
+
+model QaTestExecution {
+  id             String            @id @default(cuid())
+  tenantId       String
+  testRunId      String
+  testCaseId     String?
+  taskId         String?
+  defectTaskId   String?
+  executedById   String?
+  title          String
+  status         QaExecutionStatus @default(UNTESTED)
+  notes          String?
+  actualResult   String?
+  durationMs     Int?
+  failureMessage String?
+  failureStack   String?
+  evidence       Json?
+  executedAt     DateTime?
+  metadata       Json?
+
+  tenant         Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  testRun        QaTestRun         @relation(fields: [testRunId], references: [id], onDelete: Cascade)
+  testCase       QaTestCase?       @relation(fields: [testCaseId], references: [id], onDelete: SetNull)
+  task           Task?             @relation("QaExecutionTask", fields: [taskId], references: [id], onDelete: SetNull)
+  defectTask     Task?             @relation("QaExecutionDefectTask", fields: [defectTaskId], references: [id], onDelete: SetNull)
+  executedBy     User?             @relation("QaTestExecutionExecutor", fields: [executedById], references: [id], onDelete: SetNull)
+  evidenceItems  QaEvidence[]
+
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@index([tenantId])
+  @@index([testRunId, status])
+  @@index([testCaseId])
+  @@index([taskId, status])
+  @@index([defectTaskId])
+}
+
+model QaEvidence {
+  id             String         @id @default(cuid())
+  tenantId       String
+  testCaseId     String?
+  executionId    String?
+  taskId         String?
+  createdById    String?
+  type           QaEvidenceType @default(NOTE)
+  title          String
+  url            String?
+  fileAssetId    String?
+  notes          String?
+  metadata       Json?
+
+  tenant         Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  testCase       QaTestCase?    @relation(fields: [testCaseId], references: [id], onDelete: Cascade)
+  execution      QaTestExecution? @relation(fields: [executionId], references: [id], onDelete: Cascade)
+  task           Task?          @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  createdBy      User?          @relation("QaEvidenceCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  createdAt      DateTime       @default(now())
+
+  @@index([tenantId])
+  @@index([testCaseId])
+  @@index([executionId])
+  @@index([taskId])
+  @@index([fileAssetId])
 }
 
 /* =========================

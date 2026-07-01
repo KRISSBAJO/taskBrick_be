@@ -10,6 +10,7 @@ import { ProjectAccessPolicyService } from '../access-policy/project-access-poli
 import { AuditService } from '../audit/audit.service';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { PrismaService } from '../prisma/prisma.service';
+import { QaService } from '../qa/qa.service';
 import { AssignLabelDto } from './dto/assign-label.dto';
 import { BulkTaskOperationDto } from './dto/bulk-task-operation.dto';
 import { CreateCustomFieldDto } from './dto/create-custom-field.dto';
@@ -335,7 +336,8 @@ export class TasksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auditService: AuditService,
-    private readonly projectAccessPolicy: ProjectAccessPolicyService
+    private readonly projectAccessPolicy: ProjectAccessPolicyService,
+    private readonly qaService: QaService
   ) {}
 
   taxonomy() {
@@ -546,6 +548,10 @@ export class TasksService {
         : projectChanged
           ? null
           : undefined;
+
+    if (dto.status === TaskStatus.DONE && before.status !== TaskStatus.DONE) {
+      await this.qaService.assertTaskDoneGate(user, taskId, nextProjectId);
+    }
 
     const updated = await this.prisma.task.update({
       where: { id: taskId },

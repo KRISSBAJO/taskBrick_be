@@ -416,6 +416,30 @@ export class FilesService {
               ]
         }
       });
+    } else if (normalizedType === 'QA_TEST_CASE') {
+      count = await this.prisma.qaTestCase.count({
+        where: {
+          id: entityId,
+          tenantId: user.tenantId,
+          project: this.projectAccessPolicy.projectAccessWhere(user)
+        }
+      });
+      if (write && count > 0 && !this.canManageQaEvidence(user)) {
+        throw new ForbiddenException('Cannot attach QA evidence');
+      }
+    } else if (normalizedType === 'QA_TEST_EXECUTION') {
+      count = await this.prisma.qaTestExecution.count({
+        where: {
+          id: entityId,
+          tenantId: user.tenantId,
+          testRun: {
+            project: this.projectAccessPolicy.projectAccessWhere(user)
+          }
+        }
+      });
+      if (write && count > 0 && !this.canManageQaEvidence(user)) {
+        throw new ForbiddenException('Cannot attach QA evidence');
+      }
     } else if (normalizedType === 'OMOFLOW') {
       count = 1;
     } else {
@@ -441,6 +465,15 @@ export class FilesService {
       user.permissions.includes('manage:all') ||
       user.permissions.includes('manage:tenant') ||
       user.permissions.includes('manage:projects')
+    );
+  }
+
+  private canManageQaEvidence(user: AuthenticatedUser) {
+    return (
+      this.canManageFiles(user) ||
+      user.permissions.includes('manage:tests') ||
+      user.permissions.includes('execute:tests') ||
+      user.permissions.includes('manage:test_automation')
     );
   }
 

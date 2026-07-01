@@ -26,6 +26,7 @@ import { ObservabilityModule } from './observability/observability.module';
 import { PlatformAdminModule } from './platform-admin/platform-admin.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ProjectsModule } from './projects/projects.module';
+import { QaModule } from './qa/qa.module';
 import { ReportingModule } from './reporting/reporting.module';
 import { SearchModule } from './search/search.module';
 import { TasksModule } from './tasks/tasks.module';
@@ -82,6 +83,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
     BillingModule,
     IntegrationsModule,
     AiModule,
+    QaModule,
     ReportingModule,
     SearchModule
   ],
