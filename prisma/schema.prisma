@@ -222,6 +222,20 @@ enum QaEvidenceType {
   NOTE
 }
 
+enum MarketingLeadType {
+  CONTACT
+  DEMO
+}
+
+enum MarketingLeadStatus {
+  NEW
+  CONTACTED
+  QUALIFIED
+  DISQUALIFIED
+  CONVERTED
+  ARCHIVED
+}
+
 enum Visibility {
   PRIVATE
   TEAM
@@ -4046,6 +4060,37 @@ model ApiKey {
   @@index([tenantId, status])
   @@index([tenantId, prefix])
   @@index([tenantId, createdById])
+}
+
+model MarketingLead {
+  id            String              @id @default(cuid())
+  type          MarketingLeadType
+  status        MarketingLeadStatus @default(NEW)
+  name          String
+  email         String
+  company       String?
+  phone         String?
+  jobTitle      String?
+  teamSize      String?
+  preferredDate DateTime?
+  preferredTime String?
+  timezone      String?
+  subject       String?
+  message       String
+  source        String              @default("landing")
+  pageUrl       String?
+  ipAddress     String?
+  userAgent     String?
+  mailSent      Boolean             @default(false)
+  mailProvider  String?
+  mailError     String?
+  metadata      Json?
+
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+
+  @@index([type, status, createdAt])
+  @@index([email])
 }
 
 model AuditLog {

@@ -20,6 +20,7 @@ import { HealthModule } from './health/health.module';
 import { IdentitySecurityModule } from './identity-security/identity-security.module';
 import { InternalMailModule } from './internal-mail/internal-mail.module';
 import { IntegrationsModule } from './integrations/integrations.module';
+import { MarketingModule } from './marketing/marketing.module';
 import { MeetingsModule } from './meetings/meetings.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ObservabilityModule } from './observability/observability.module';
@@ -82,6 +83,7 @@ import { WorkspacesModule } from './workspaces/workspaces.module';
     WorkflowsModule,
     BillingModule,
     IntegrationsModule,
+    MarketingModule,
     AiModule,
     QaModule,
     ReportingModule,

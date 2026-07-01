@@ -88,6 +88,10 @@ export default () => ({
     resendApiKey: process.env.RESEND_API_KEY,
     sendgridApiKey: process.env.SENDGRID_API_KEY
   },
+  marketing: {
+    notifyEmail: process.env.MARKETING_NOTIFY_EMAIL,
+    confirmationsEnabled: toBoolean(process.env.MARKETING_CONFIRMATIONS_ENABLED, true)
+  },
   storage: {
     driver: process.env.STORAGE_DRIVER ?? 'local',
     maxUploadBytes: toNumber(process.env.MAX_UPLOAD_BYTES, 10485760),

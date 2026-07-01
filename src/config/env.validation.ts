@@ -123,6 +123,8 @@ export const envValidationSchema = Joi.object({
   SMTP_SECURE: booleanValue.default(false),
   RESEND_API_KEY: optionalText,
   SENDGRID_API_KEY: optionalText,
+  MARKETING_NOTIFY_EMAIL: optionalText,
+  MARKETING_CONFIRMATIONS_ENABLED: booleanValue.default(true),
 
   STORAGE_DRIVER: Joi.string().valid('local', 's3', 'cloudinary').default('local'),
   MAX_UPLOAD_BYTES: Joi.number().integer().positive().default(10485760),

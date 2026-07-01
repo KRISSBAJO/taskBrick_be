@@ -34451,6 +34451,104 @@
         ]
       }
     },
+    "/api/v1/marketing/status": {
+      "get": {
+        "operationId": "Marketing_status",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "properties": {
+                    "status": {
+                      "type": "string",
+                      "example": "ok"
+                    },
+                    "notifyEmailConfigured": {
+                      "type": "boolean"
+                    },
+                    "confirmationsEnabled": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "summary": "Marketing lead intake readiness check",
+        "tags": [
+          "marketing"
+        ]
+      }
+    },
+    "/api/v1/marketing/contact": {
+      "post": {
+        "operationId": "Marketing_createContact",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateContactRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketingLeadResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Submit a public contact request",
+        "tags": [
+          "marketing"
+        ]
+      }
+    },
+    "/api/v1/marketing/demo": {
+      "post": {
+        "operationId": "Marketing_createDemo",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateDemoRequestDto"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MarketingLeadResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "summary": "Submit a public book-a-demo request",
+        "tags": [
+          "marketing"
+        ]
+      }
+    },
     "/api/v1/ai/status": {
       "get": {
         "operationId": "Ai_status",
@@ -64629,6 +64727,146 @@
         },
         "required": [
           "status"
+        ]
+      },
+      "CreateContactRequestDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Ada Lovelace"
+          },
+          "email": {
+            "type": "string",
+            "example": "ada@example.com"
+          },
+          "company": {
+            "type": "string",
+            "example": "Acme Inc."
+          },
+          "phone": {
+            "type": "string",
+            "example": "+1 555 0100"
+          },
+          "subject": {
+            "type": "string",
+            "example": "Enterprise rollout"
+          },
+          "message": {
+            "type": "string",
+            "example": "We want to learn more about TaskBricks for our delivery team."
+          },
+          "source": {
+            "type": "string",
+            "example": "landing-contact"
+          },
+          "pageUrl": {
+            "type": "string",
+            "example": "https://taskbrick.com/contact"
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "message"
+        ]
+      },
+      "MarketingLeadResponseDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "type": {
+            "type": "string",
+            "enum": [
+              "CONTACT",
+              "DEMO"
+            ]
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "NEW",
+              "CONTACTED",
+              "QUALIFIED",
+              "DISQUALIFIED",
+              "CONVERTED",
+              "ARCHIVED"
+            ]
+          },
+          "createdAt": {
+            "format": "date-time",
+            "type": "string"
+          },
+          "mailSent": {
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "type",
+          "status",
+          "createdAt",
+          "mailSent"
+        ]
+      },
+      "CreateDemoRequestDto": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "example": "Ada Lovelace"
+          },
+          "email": {
+            "type": "string",
+            "example": "ada@example.com"
+          },
+          "company": {
+            "type": "string",
+            "example": "Acme Inc."
+          },
+          "phone": {
+            "type": "string",
+            "example": "+1 555 0100"
+          },
+          "jobTitle": {
+            "type": "string",
+            "example": "VP Delivery"
+          },
+          "teamSize": {
+            "type": "string",
+            "example": "51-200"
+          },
+          "preferredDate": {
+            "type": "string",
+            "example": "2026-07-08"
+          },
+          "preferredTime": {
+            "type": "string",
+            "example": "10:00 AM"
+          },
+          "timezone": {
+            "type": "string",
+            "example": "America/Chicago"
+          },
+          "message": {
+            "type": "string",
+            "example": "We want to review project controls and mobile workflows."
+          },
+          "source": {
+            "type": "string",
+            "example": "landing-floating-demo"
+          },
+          "pageUrl": {
+            "type": "string",
+            "example": "https://taskbrick.com/book-demo"
+          }
+        },
+        "required": [
+          "name",
+          "email",
+          "company"
         ]
       },
       "UpdateAiSettingsDto": {
