@@ -1348,43 +1348,65 @@ export class AuthService {
   }
 
   private async createTenantDefaults(tx: TenantTransaction, tenantId: string) {
-    const permissions = new Map<string, string>();
+    await tx.permission.createMany({
+      data: DEFAULT_PERMISSIONS.map((permission) => ({
+        tenantId,
+        action: permission.action,
+        subject: permission.subject,
+        description: permission.description
+      })),
+      skipDuplicates: true
+    });
 
-    for (const permission of DEFAULT_PERMISSIONS) {
-      const saved = await tx.permission.create({
-        data: {
-          tenantId,
-          action: permission.action,
-          subject: permission.subject,
-          description: permission.description
-        }
-      });
+    await tx.role.createMany({
+      data: DEFAULT_ROLES.map((role) => ({
+        tenantId,
+        name: role.name,
+        description: role.description,
+        isSystem: true
+      })),
+      skipDuplicates: true
+    });
 
-      permissions.set(permissionKey(permission), saved.id);
-    }
+    const [savedPermissions, savedRoles] = await Promise.all([
+      tx.permission.findMany({
+        where: { tenantId },
+        select: { id: true, action: true, subject: true }
+      }),
+      tx.role.findMany({
+        where: { tenantId },
+        select: { id: true, name: true }
+      })
+    ]);
+
+    const permissions = new Map(
+      savedPermissions.map((permission) => [
+        permissionKey({ action: permission.action, subject: permission.subject }),
+        permission.id
+      ])
+    );
+    const roles = new Map(savedRoles.map((role) => [role.name, role.id]));
+    const rolePermissions: Prisma.RolePermissionCreateManyInput[] = [];
 
     for (const role of DEFAULT_ROLES) {
-      const savedRole = await tx.role.create({
-        data: {
-          tenantId,
-          name: role.name,
-          description: role.description,
-          isSystem: true
-        }
-      });
+      const roleId = roles.get(role.name);
+
+      if (!roleId) continue;
 
       for (const rolePermission of role.permissions) {
         const permissionId = permissions.get(rolePermission);
 
         if (permissionId) {
-          await tx.rolePermission.create({
-            data: {
-              roleId: savedRole.id,
-              permissionId
-            }
-          });
+          rolePermissions.push({ roleId, permissionId });
         }
       }
+    }
+
+    if (rolePermissions.length > 0) {
+      await tx.rolePermission.createMany({
+        data: rolePermissions,
+        skipDuplicates: true
+      });
     }
 
     await tx.securityPolicy.create({
