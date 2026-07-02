@@ -30,6 +30,7 @@ import { UpdateFeatureDto } from '../billing/dto/update-feature.dto';
 import { UpdatePlanDto } from '../billing/dto/update-plan.dto';
 import { UpdatePlanFeatureDto } from '../billing/dto/update-plan-feature.dto';
 import { RealtimeGateway } from '../collaboration/realtime.gateway';
+import { buildPublicUrl } from '../common/url/public-url.util';
 import { IntegrationsService } from '../integrations/integrations.service';
 import { MailService } from '../mail/mail.service';
 import { ObservabilityService } from '../observability/observability.service';
@@ -5576,10 +5577,7 @@ export class PlatformAdminService {
   }
 
   private authUrl(path: '/verify-email' | '/accept-invite' | '/reset-password', token: string) {
-    const frontendUrl = this.configService.get<string>('app.frontendUrl') || 'http://localhost:3000';
-    const url = new URL(path, `${frontendUrl.replace(/\/$/, '')}/`);
-    url.searchParams.set('token', token);
-    return url.toString();
+    return buildPublicUrl(this.configService.get<string>('app.frontendUrl'), path, { token });
   }
 
   private developmentLink(url: string) {

@@ -30,6 +30,18 @@ const productionCorsOrigins = Joi.string().custom((value, helpers) => {
   }
   return value;
 }, 'production CORS origins');
+const productionFrontendUrl = Joi.string().custom((value, helpers) => {
+  const raw = `${value ?? ''}`.trim();
+  if (!raw || raw.includes(',')) return helpers.error('any.invalid');
+  try {
+    const parsed = new URL(raw);
+    if (!['http:', 'https:'].includes(parsed.protocol)) return helpers.error('any.invalid');
+    if (/localhost|127\.0\.0\.1|\[::1\]/i.test(parsed.host)) return helpers.error('any.invalid');
+    return value;
+  } catch {
+    return helpers.error('any.invalid');
+  }
+}, 'production frontend URL');
 
 export const envValidationSchema = Joi.object({
   NODE_ENV: Joi.string().valid('development', 'test', 'staging', 'production').default('development'),
@@ -38,7 +50,11 @@ export const envValidationSchema = Joi.object({
   API_PREFIX: Joi.string().default('api'),
   API_VERSION: Joi.string().default('1'),
   PUBLIC_API_URL: requiredInProduction,
-  FRONTEND_URL: requiredInProduction,
+  FRONTEND_URL: Joi.when('NODE_ENV', {
+    is: 'production',
+    then: productionFrontendUrl.required(),
+    otherwise: optionalText
+  }),
   SWAGGER_ENABLED: Joi.when('NODE_ENV', {
     is: 'production',
     then: booleanValue.default(false),

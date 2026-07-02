@@ -13,6 +13,7 @@ import { createHash, randomBytes, randomUUID } from 'crypto';
 import { AuditService } from '../audit/audit.service';
 import { IdentitySecurityService } from '../identity-security/identity-security.service';
 import { InternalMailService } from '../internal-mail/internal-mail.service';
+import { buildPublicUrl, tryNormalizePublicOrigin } from '../common/url/public-url.util';
 import { VerifyMfaLoginDto } from '../identity-security/dto/mfa-login.dto';
 import { SsoCallbackDto } from '../identity-security/dto/sso-provider.dto';
 import { MailDeliveryResult, MailService } from '../mail/mail.service';
@@ -1000,30 +1001,29 @@ export class AuthService {
 
   private authUrl(path: '/verify-email' | '/reset-password' | '/accept-invite', token: string, meta?: RequestMeta) {
     const frontendUrl = this.resolveFrontendUrl(meta);
-    const url = new URL(path, `${frontendUrl.replace(/\/$/, '')}/`);
-    url.searchParams.set('token', token);
-    return url.toString();
+    return buildPublicUrl(frontendUrl, path, { token });
   }
 
   private resolveFrontendUrl(meta?: RequestMeta) {
-    const configured = this.configService.get<string>('app.frontendUrl')?.trim();
-    if (this.isBrowserUrl(configured)) {
+    const configured = tryNormalizePublicOrigin(this.configService.get<string>('app.frontendUrl'));
+    if (configured) {
       return configured;
     }
 
-    const origin = meta?.origin?.trim();
-    if (this.isBrowserUrl(origin) && !this.isBackendOrigin(origin)) {
+    const origin = tryNormalizePublicOrigin(meta?.origin);
+    if (origin && !this.isBackendOrigin(origin)) {
       return origin;
     }
 
-    const refererOrigin = this.originFromUrl(meta?.referer);
-    if (this.isBrowserUrl(refererOrigin) && !this.isBackendOrigin(refererOrigin)) {
+    const refererOrigin = tryNormalizePublicOrigin(meta?.referer);
+    if (refererOrigin && !this.isBackendOrigin(refererOrigin)) {
       return refererOrigin;
     }
 
     const corsOrigin = this.configService
       .get<string[]>('app.corsOrigins', [])
-      .find((item) => this.isBrowserUrl(item) && !this.isBackendOrigin(item));
+      .map((item) => tryNormalizePublicOrigin(item))
+      .find((item): item is string => Boolean(item && !this.isBackendOrigin(item)));
 
     if (corsOrigin) {
       return corsOrigin;
@@ -1034,19 +1034,6 @@ export class AuthService {
     }
 
     return 'http://localhost:3000';
-  }
-
-  private originFromUrl(value?: string | null) {
-    if (!value) return undefined;
-    try {
-      return new URL(value).origin;
-    } catch {
-      return undefined;
-    }
-  }
-
-  private isBrowserUrl(value?: string | null): value is string {
-    return Boolean(value && /^https?:\/\//i.test(value));
   }
 
   private isBackendOrigin(value: string) {

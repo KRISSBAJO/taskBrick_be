@@ -13,6 +13,7 @@ import {
 } from 'crypto';
 import { AuditService } from '../audit/audit.service';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
+import { buildPublicUrl } from '../common/url/public-url.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { DisableMfaDto, EnableTotpDto, RegenerateBackupCodesDto, SetupTotpDto } from './dto/mfa-management.dto';
 import { VerifyMfaLoginDto } from './dto/mfa-login.dto';
@@ -1233,8 +1234,7 @@ export class IdentitySecurityService {
   }
 
   private defaultSsoRedirectUri() {
-    const frontendUrl = this.configService.get<string>('app.frontendUrl') || 'http://localhost:3000';
-    return `${frontendUrl.replace(/\/$/, '')}/login/sso/callback`;
+    return buildPublicUrl(this.configService.get<string>('app.frontendUrl'), '/login/sso/callback');
   }
 
   private normalizeDomains(domains?: string[]) {

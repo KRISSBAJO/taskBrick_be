@@ -18,6 +18,7 @@ import { createHmac, randomUUID, timingSafeEqual } from 'crypto';
 import { AuditService } from '../audit/audit.service';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
 import { PaginationQueryDto } from '../common/dto/pagination-query.dto';
+import { buildPublicUrl } from '../common/url/public-url.util';
 import { PrismaService } from '../prisma/prisma.service';
 import { BillingEventQueryDto } from './dto/billing-event-query.dto';
 import { ChangePlanDto } from './dto/change-plan.dto';
@@ -1537,9 +1538,9 @@ export class BillingService {
     }
 
     const provider = this.resolveCheckoutProvider(dto.provider, plan?.currency);
-    const frontendUrl = this.configService.get<string>('app.frontendUrl') ?? 'http://localhost:3000';
-    const successUrl = dto.successUrl ?? `${frontendUrl}/settings/billing?checkout=success`;
-    const cancelUrl = dto.cancelUrl ?? `${frontendUrl}/settings/billing?checkout=cancelled`;
+    const frontendUrl = this.configService.get<string>('app.frontendUrl');
+    const successUrl = dto.successUrl ?? buildPublicUrl(frontendUrl, '/settings/billing', { checkout: 'success' });
+    const cancelUrl = dto.cancelUrl ?? buildPublicUrl(frontendUrl, '/settings/billing', { checkout: 'cancelled' });
     const seatCount = dto.seatCount ?? 1;
 
     if (provider === 'stripe' && this.configService.get<string>('billing.stripeSecretKey')) {
@@ -1606,11 +1607,11 @@ export class BillingService {
   async createPortalSession(user: AuthenticatedUser, dto: PortalDto) {
     const subscription = await this.getCurrentSubscription(user);
     const provider = subscription?.provider ?? this.configService.get<string>('billing.provider', 'none');
-    const frontendUrl = this.configService.get<string>('app.frontendUrl') ?? 'http://localhost:3000';
+    const frontendUrl = this.configService.get<string>('app.frontendUrl');
     const returnUrl =
       dto.returnUrl ??
       this.configService.get<string>('billing.stripePortalReturnUrl') ??
-      `${frontendUrl}/settings/billing`;
+      buildPublicUrl(frontendUrl, '/settings/billing');
 
     if (
       provider === 'stripe' &&

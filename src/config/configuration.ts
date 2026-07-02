@@ -1,3 +1,5 @@
+import { normalizePublicOrigin } from '../common/url/public-url.util';
+
 const toNumber = (value: string | undefined, fallback: number) =>
   Number.parseInt(value ?? `${fallback}`, 10);
 
@@ -23,7 +25,7 @@ export default () => ({
     apiPrefix: process.env.API_PREFIX ?? 'api',
     apiVersion: process.env.API_VERSION ?? '1',
     publicApiUrl: process.env.PUBLIC_API_URL,
-    frontendUrl: process.env.FRONTEND_URL,
+    frontendUrl: normalizePublicOrigin(process.env.FRONTEND_URL),
     swaggerEnabled: process.env.SWAGGER_ENABLED !== 'false',
     trustProxy: toBoolean(process.env.TRUST_PROXY),
     requestBodyLimit: process.env.REQUEST_BODY_LIMIT ?? '1mb',
