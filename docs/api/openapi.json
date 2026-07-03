@@ -15928,11 +15928,6 @@
             "description": "XLSX workbook template"
           }
         },
-        "security": [
-          {
-            "bearer": []
-          }
-        ],
         "summary": "Download the task Excel import template",
         "tags": [
           "tasks"

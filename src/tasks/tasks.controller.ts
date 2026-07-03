@@ -279,13 +279,10 @@ export class TasksController {
 
   @Get('import-template')
   @Version('1')
-  @UseGuards(JwtAuthGuard, PermissionsGuard)
-  @RequirePermissions('read:tasks')
-  @ApiBearerAuth()
   @ApiOperation({ summary: 'Download the task Excel import template' })
   @ApiOkResponse({ description: 'XLSX workbook template' })
-  async importTemplate(@CurrentUser() user: AuthenticatedUser, @Res() response: Response) {
-    const buffer = await this.tasksService.createImportTemplate(user);
+  async importTemplate(@Res() response: Response) {
+    const buffer = await this.tasksService.createImportTemplate();
     response.setHeader(
       'Content-Type',
       'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'

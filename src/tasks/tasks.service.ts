@@ -489,9 +489,7 @@ export class TasksService {
     return this.getAccessibleTaskOrThrow(user, taskId);
   }
 
-  async createImportTemplate(user: AuthenticatedUser) {
-    void user;
-
+  async createImportTemplate() {
     const workbook = new ExcelJS.Workbook();
     workbook.creator = 'TaskBricks';
     workbook.created = new Date();
