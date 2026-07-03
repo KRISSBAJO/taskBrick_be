@@ -9,17 +9,23 @@ import {
   Put,
   Query,
   Req,
+  Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
   Version
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
+  ApiBody,
   ApiBearerAuth,
+  ApiConsumes,
   ApiCreatedResponse,
   ApiOkResponse,
   ApiOperation,
   ApiTags
 } from '@nestjs/swagger';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { RequirePermissions } from '../auth/decorators/require-permissions.decorator';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -38,6 +44,7 @@ import { CreateTaskSavedViewDto } from './dto/create-task-saved-view.dto';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { CustomFieldQueryDto } from './dto/custom-field-query.dto';
 import { SetTaskCustomFieldValueDto } from './dto/set-task-custom-field-value.dto';
+import { ImportTasksDto, ImportTasksResponseDto } from './dto/task-import.dto';
 import { TaskSavedViewQueryDto } from './dto/task-saved-view-query.dto';
 import { TaskQueryDto } from './dto/task-query.dto';
 import { TaskUserDto } from './dto/task-user.dto';
@@ -268,6 +275,63 @@ export class TasksController {
     @Req() request: Request
   ) {
     return this.tasksService.deleteSavedView(user, viewId, this.getRequestMeta(request));
+  }
+
+  @Get('import-template')
+  @Version('1')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @RequirePermissions('read:tasks')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Download the task Excel import template' })
+  @ApiOkResponse({ description: 'XLSX workbook template' })
+  async importTemplate(@CurrentUser() user: AuthenticatedUser, @Res() response: Response) {
+    const buffer = await this.tasksService.createImportTemplate(user);
+    response.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    response.setHeader(
+      'Content-Disposition',
+      'attachment; filename="taskbricks-task-import-template.xlsx"'
+    );
+    response.send(buffer);
+  }
+
+  @Post('import')
+  @Version('1')
+  @UseGuards(JwtAuthGuard, PermissionsGuard)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  @RequirePermissions('read:tasks')
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Validate or import tasks from an Excel workbook' })
+  @ApiBody({
+    schema: {
+      type: 'object',
+      required: ['projectId', 'file'],
+      properties: {
+        projectId: { type: 'string' },
+        boardId: { type: 'string' },
+        dryRun: { type: 'string', enum: ['true', 'false'] },
+        defaultStatus: { type: 'string' },
+        defaultPriority: { type: 'string' },
+        defaultType: { type: 'string' },
+        file: {
+          type: 'string',
+          format: 'binary'
+        }
+      }
+    }
+  })
+  @ApiOkResponse({ type: ImportTasksResponseDto })
+  importTasks(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() dto: ImportTasksDto,
+    @UploadedFile()
+    file: { originalname: string; mimetype?: string; buffer: Buffer; size: number } | undefined,
+    @Req() request: Request
+  ) {
+    return this.tasksService.importFromSpreadsheet(user, dto, file, this.getRequestMeta(request));
   }
 
   @Post('bulk')

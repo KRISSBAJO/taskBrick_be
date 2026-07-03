@@ -6,6 +6,7 @@ import {
   NotFoundException
 } from '@nestjs/common';
 import { Prisma, TaskPriority, TaskStatus, TaskType, Visibility } from '@prisma/client';
+import ExcelJS from 'exceljs';
 import { ProjectAccessPolicyService } from '../access-policy/project-access-policy.service';
 import { AuditService } from '../audit/audit.service';
 import { AuthenticatedUser } from '../auth/interfaces/authenticated-user.interface';
@@ -24,6 +25,7 @@ import { CreateTaskSavedViewDto } from './dto/create-task-saved-view.dto';
 import { CreateTaskDto } from './dto/create-task.dto';
 import { CustomFieldQueryDto } from './dto/custom-field-query.dto';
 import { SetTaskCustomFieldValueDto } from './dto/set-task-custom-field-value.dto';
+import { ImportTasksDto, TaskImportRowIssueDto } from './dto/task-import.dto';
 import { TaskSavedViewQueryDto } from './dto/task-saved-view-query.dto';
 import { TASK_SORT_FIELDS, TaskQueryDto } from './dto/task-query.dto';
 import { TaskUserDto } from './dto/task-user.dto';
@@ -39,6 +41,50 @@ interface RequestMeta {
   ipAddress?: string | null;
   userAgent?: string | null;
 }
+
+interface TaskImportFile {
+  originalname: string;
+  mimetype?: string;
+  buffer: Buffer;
+  size: number;
+}
+
+interface ParsedTaskImportRow {
+  row: number;
+  title: string;
+  description?: string;
+  status: TaskStatus;
+  priority: TaskPriority;
+  type: TaskType;
+  dueDate?: string;
+  storyPoints?: number;
+  estimateMins?: number;
+  assigneeEmail?: string;
+  labels: string[];
+  boardColumnName?: string;
+  sprintId?: string;
+  parentTaskKey?: string;
+  boardColumnId?: string | null;
+  assigneeUserId?: string;
+  parentTaskId?: string;
+}
+
+const TASK_IMPORT_MAX_ROWS = 500;
+const TASK_IMPORT_HEADERS = [
+  'Title',
+  'Description',
+  'Status',
+  'Priority',
+  'Type',
+  'Due Date',
+  'Story Points',
+  'Estimate Hours',
+  'Assignee Email',
+  'Labels',
+  'Board Column',
+  'Sprint ID',
+  'Parent Task Key'
+] as const;
 
 const userSummarySelect = {
   id: true,
@@ -441,6 +487,232 @@ export class TasksService {
 
   async get(user: AuthenticatedUser, taskId: string) {
     return this.getAccessibleTaskOrThrow(user, taskId);
+  }
+
+  async createImportTemplate(user: AuthenticatedUser) {
+    void user;
+
+    const workbook = new ExcelJS.Workbook();
+    workbook.creator = 'TaskBricks';
+    workbook.created = new Date();
+    workbook.modified = new Date();
+
+    const sheet = workbook.addWorksheet('Tasks', {
+      views: [{ state: 'frozen', ySplit: 1 }]
+    });
+    sheet.addRow([...TASK_IMPORT_HEADERS]);
+    sheet.addRows([
+      [
+        'Implement billing receipt audit',
+        'Capture receipt links and payment references for subscription audit.',
+        'TODO',
+        'HIGH',
+        'TASK',
+        '2026-07-15',
+        5,
+        4,
+        'owner@example.com',
+        'billing, audit',
+        'To Do',
+        '',
+        ''
+      ],
+      [
+        'Fix login validation error',
+        'Reproduce the invalid session flow and add regression coverage.',
+        'BACKLOG',
+        'CRITICAL',
+        'BUG',
+        '2026-07-18',
+        3,
+        2,
+        '',
+        'auth, qa',
+        'Backlog',
+        '',
+        ''
+      ]
+    ]);
+
+    sheet.columns = [
+      { width: 36 },
+      { width: 62 },
+      { width: 18 },
+      { width: 18 },
+      { width: 18 },
+      { width: 18 },
+      { width: 16 },
+      { width: 16 },
+      { width: 32 },
+      { width: 32 },
+      { width: 24 },
+      { width: 30 },
+      { width: 24 }
+    ];
+
+    const header = sheet.getRow(1);
+    header.height = 24;
+    header.font = { bold: true, color: { argb: 'FF111111' } };
+    header.fill = {
+      type: 'pattern',
+      pattern: 'solid',
+      fgColor: { argb: 'FFFFD400' }
+    };
+    header.alignment = { vertical: 'middle' };
+
+    sheet.eachRow((row, rowNumber) => {
+      row.eachCell((cell) => {
+        cell.border = {
+          top: { style: 'thin', color: { argb: 'FFE8DDB8' } },
+          left: { style: 'thin', color: { argb: 'FFE8DDB8' } },
+          bottom: { style: 'thin', color: { argb: 'FFE8DDB8' } },
+          right: { style: 'thin', color: { argb: 'FFE8DDB8' } }
+        };
+        cell.alignment = { vertical: 'top', wrapText: true };
+      });
+      if (rowNumber > 1) row.height = 42;
+    });
+
+    const guide = workbook.addWorksheet('Guide');
+    guide.columns = [{ width: 28 }, { width: 86 }];
+    guide.addRows([
+      ['Required', 'Title'],
+      ['Status values', Object.values(TaskStatus).join(', ')],
+      ['Priority values', Object.values(TaskPriority).join(', ')],
+      ['Type values', Object.values(TaskType).join(', ')],
+      ['Due Date', 'Use YYYY-MM-DD. Leave blank for no due date.'],
+      ['Assignee Email', 'Optional. Must match a user in this tenant/workspace.'],
+      ['Labels', 'Optional comma-separated labels. Missing labels are created during import.'],
+      ['Board Column', 'Optional. Use the visible board column name, such as Backlog, To Do, In Progress, Review, Testing, Done.'],
+      ['Dry run', 'Use preview before import to catch invalid rows without creating tasks.'],
+      ['Limit', `${TASK_IMPORT_MAX_ROWS} task rows per import.`]
+    ]);
+    guide.getRow(1).font = { bold: true };
+
+    const buffer = await workbook.xlsx.writeBuffer();
+    return Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer);
+  }
+
+  async importFromSpreadsheet(
+    user: AuthenticatedUser,
+    dto: ImportTasksDto,
+    file: TaskImportFile | undefined,
+    meta: RequestMeta
+  ) {
+    if (!file?.buffer?.length) {
+      throw new BadRequestException('Upload a .xlsx workbook');
+    }
+    if (!file.originalname.toLowerCase().endsWith('.xlsx')) {
+      throw new BadRequestException('Only .xlsx workbooks are supported');
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      throw new BadRequestException('Task import workbook must be 5MB or smaller');
+    }
+
+    const project = await this.getTenantProjectSummaryOrThrow(user.tenantId, dto.projectId);
+    await this.projectAccessPolicy.assertProjectAction(user, dto.projectId, 'createTasks');
+
+    const workbook = new ExcelJS.Workbook();
+    await workbook.xlsx.load(file.buffer as unknown as ArrayBuffer);
+    const worksheet = workbook.getWorksheet('Tasks') ?? workbook.worksheets[0];
+    if (!worksheet) {
+      throw new BadRequestException('Workbook must contain a Tasks sheet');
+    }
+
+    const errors: TaskImportRowIssueDto[] = [];
+    const warnings: TaskImportRowIssueDto[] = [];
+    const rows = this.parseTaskImportRows(worksheet, dto, errors, warnings);
+
+    if (rows.length > TASK_IMPORT_MAX_ROWS) {
+      errors.push({
+        row: TASK_IMPORT_MAX_ROWS + 2,
+        message: `Import limit exceeded. Upload ${TASK_IMPORT_MAX_ROWS} rows or fewer.`
+      });
+    }
+
+    await this.resolveTaskImportReferences(user, dto.projectId, dto.boardId, rows, errors, warnings);
+
+    const dryRun = dto.dryRun === 'true';
+    if (dryRun || errors.length > 0) {
+      return {
+        dryRun,
+        totalRows: rows.length,
+        validRows: rows.length - new Set(errors.map((error) => error.row)).size,
+        createdCount: 0,
+        skippedCount: rows.length,
+        errors,
+        warnings,
+        tasks: []
+      };
+    }
+
+    const createdTasks: TaskRecord[] = [];
+    for (const row of rows) {
+      const task = await this.create(user, {
+        projectId: dto.projectId,
+        sprintId: row.sprintId,
+        parentTaskId: row.parentTaskId,
+        title: row.title,
+        description: row.description,
+        status: row.status,
+        priority: row.priority,
+        type: row.type,
+        dueDate: row.dueDate,
+        storyPoints: row.storyPoints,
+        estimateMins: row.estimateMins
+      }, meta);
+
+      const updatedTask = row.boardColumnId
+        ? await this.prisma.task.update({
+            where: { id: task.id },
+            data: { boardColumnId: row.boardColumnId },
+            select: taskSelect
+          })
+        : task;
+
+      if (row.assigneeUserId) {
+        await this.addAssignee(user, updatedTask.id, { userId: row.assigneeUserId }, meta);
+      }
+
+      for (const labelName of row.labels) {
+        const label = await this.upsertImportLabel(user.tenantId, labelName);
+        await this.assignLabel(user, updatedTask.id, { labelId: label.id }, meta);
+      }
+
+      await this.recordTaskActivity(updatedTask.id, user, 'task.import', undefined, {
+        source: 'xlsx',
+        row: row.row,
+        fileName: file.originalname
+      });
+
+      createdTasks.push(updatedTask);
+    }
+
+    await this.recordAudit(user, 'task.import', 'Task', createdTasks.map((task) => task.id).join(','), undefined, {
+      projectId: project.id,
+      projectKey: project.key,
+      fileName: file.originalname,
+      totalRows: rows.length,
+      createdCount: createdTasks.length
+    }, meta);
+
+    return {
+      dryRun: false,
+      totalRows: rows.length,
+      validRows: rows.length,
+      createdCount: createdTasks.length,
+      skippedCount: 0,
+      errors,
+      warnings,
+      tasks: createdTasks.map((task) => ({
+        id: task.id,
+        key: task.key,
+        title: task.title,
+        status: task.status,
+        priority: task.priority,
+        boardColumnId: task.boardColumn?.id ?? null
+      }))
+    };
   }
 
   async create(user: AuthenticatedUser, dto: CreateTaskDto, meta: RequestMeta) {
@@ -2434,6 +2706,411 @@ export class TasksService {
     }
 
     throw new ForbiddenException('You do not have permission to modify this saved view');
+  }
+
+  private parseTaskImportRows(
+    worksheet: ExcelJS.Worksheet,
+    dto: ImportTasksDto,
+    errors: TaskImportRowIssueDto[],
+    warnings: TaskImportRowIssueDto[]
+  ): ParsedTaskImportRow[] {
+    const rows: ParsedTaskImportRow[] = [];
+
+    worksheet.eachRow({ includeEmpty: false }, (row, rowNumber) => {
+      if (rowNumber === 1) return;
+
+      const title = this.getCellText(row.getCell(1));
+      const description = this.getCellText(row.getCell(2));
+      const statusText = this.getCellText(row.getCell(3));
+      const priorityText = this.getCellText(row.getCell(4));
+      const typeText = this.getCellText(row.getCell(5));
+      const dueDate = this.getCellDate(row.getCell(6), rowNumber, 'Due Date', errors);
+      const storyPoints = this.getCellInteger(row.getCell(7), rowNumber, 'Story Points', errors);
+      const estimateHours = this.getCellNumber(row.getCell(8), rowNumber, 'Estimate Hours', errors);
+      const assigneeEmail = this.getCellText(row.getCell(9));
+      const labels = this.getCellText(row.getCell(10))
+        .split(',')
+        .map((label) => label.trim())
+        .filter(Boolean);
+      const boardColumnName = this.getCellText(row.getCell(11));
+      const sprintId = this.getCellText(row.getCell(12));
+      const parentTaskKey = this.getCellText(row.getCell(13));
+
+      const hasAnyValue = [
+        title,
+        description,
+        statusText,
+        priorityText,
+        typeText,
+        dueDate,
+        storyPoints,
+        estimateHours,
+        assigneeEmail,
+        labels.join(','),
+        boardColumnName,
+        sprintId,
+        parentTaskKey
+      ].some((value) => value !== undefined && value !== null && String(value).trim() !== '');
+      if (!hasAnyValue) return;
+
+      if (!title) {
+        errors.push({ row: rowNumber, field: 'Title', message: 'Title is required' });
+      }
+      if (title.length > 240) {
+        errors.push({
+          row: rowNumber,
+          field: 'Title',
+          message: 'Title must be 240 characters or fewer',
+          value: title
+        });
+      }
+      if (description.length > 10000) {
+        errors.push({
+          row: rowNumber,
+          field: 'Description',
+          message: 'Description must be 10000 characters or fewer'
+        });
+      }
+
+      const status = this.normalizeImportStatus(statusText, dto.defaultStatus ?? TaskStatus.TODO, rowNumber, errors);
+      const priority = this.normalizeImportPriority(
+        priorityText,
+        dto.defaultPriority ?? TaskPriority.MEDIUM,
+        rowNumber,
+        errors
+      );
+      const type = this.normalizeImportType(typeText, dto.defaultType ?? TaskType.TASK, rowNumber, errors);
+
+      if (labels.length > 10) {
+        warnings.push({
+          row: rowNumber,
+          field: 'Labels',
+          message: 'Only the first 10 labels will be imported',
+          value: labels.join(', ')
+        });
+      }
+
+      rows.push({
+        row: rowNumber,
+        title,
+        description: description || undefined,
+        status,
+        priority,
+        type,
+        dueDate,
+        storyPoints,
+        estimateMins: estimateHours === undefined ? undefined : Math.round(estimateHours * 60),
+        assigneeEmail: assigneeEmail || undefined,
+        labels: [...new Set(labels.slice(0, 10))],
+        boardColumnName: boardColumnName || undefined,
+        sprintId: sprintId || undefined,
+        parentTaskKey: parentTaskKey || undefined
+      });
+    });
+
+    if (rows.length === 0) {
+      errors.push({ row: 2, message: 'No task rows were found in the workbook' });
+    }
+
+    return rows;
+  }
+
+  private async resolveTaskImportReferences(
+    user: AuthenticatedUser,
+    projectId: string,
+    boardId: string | undefined,
+    rows: ParsedTaskImportRow[],
+    errors: TaskImportRowIssueDto[],
+    warnings: TaskImportRowIssueDto[]
+  ) {
+    const columns = await this.getImportBoardColumns(user.tenantId, projectId, boardId);
+    const columnsByName = new Map(columns.map((column) => [this.normalizeImportToken(column.name), column]));
+
+    const assigneeEmails = [
+      ...new Set(
+        rows
+          .map((row) => row.assigneeEmail?.trim().toLowerCase())
+          .filter((email): email is string => Boolean(email))
+      )
+    ];
+    const users = assigneeEmails.length
+      ? await this.prisma.user.findMany({
+          where: {
+            tenantId: user.tenantId,
+            OR: assigneeEmails.map((email) => ({ email: { equals: email, mode: 'insensitive' } }))
+          },
+          select: { id: true, email: true }
+        })
+      : [];
+    const usersByEmail = new Map(users.map((candidate) => [candidate.email.toLowerCase(), candidate.id]));
+
+    const parentKeys = [
+      ...new Set(
+        rows
+          .map((row) => row.parentTaskKey?.trim().toUpperCase())
+          .filter((key): key is string => Boolean(key))
+      )
+    ];
+    const parents = parentKeys.length
+      ? await this.prisma.task.findMany({
+          where: {
+            tenantId: user.tenantId,
+            projectId,
+            key: { in: parentKeys }
+          },
+          select: { id: true, key: true }
+        })
+      : [];
+    const parentsByKey = new Map(parents.map((task) => [task.key.toUpperCase(), task.id]));
+
+    for (const row of rows) {
+      if (row.boardColumnName) {
+        const column = columnsByName.get(this.normalizeImportToken(row.boardColumnName));
+        if (!column) {
+          errors.push({
+            row: row.row,
+            field: 'Board Column',
+            message: 'Board column was not found for this project',
+            value: row.boardColumnName
+          });
+        } else {
+          row.boardColumnId = column.id;
+          if (column.status) {
+            row.status = column.status;
+          }
+        }
+      } else {
+        row.boardColumnId = await this.resolveDefaultBoardColumnId(user.tenantId, projectId, row.status);
+      }
+
+      if (row.sprintId) {
+        try {
+          await this.assertSprintBelongsToProject(projectId, row.sprintId);
+        } catch {
+          errors.push({
+            row: row.row,
+            field: 'Sprint ID',
+            message: 'Sprint was not found for this project',
+            value: row.sprintId
+          });
+        }
+      }
+
+      if (row.parentTaskKey) {
+        const parentId = parentsByKey.get(row.parentTaskKey.trim().toUpperCase());
+        if (!parentId) {
+          errors.push({
+            row: row.row,
+            field: 'Parent Task Key',
+            message: 'Parent task key was not found in this project',
+            value: row.parentTaskKey
+          });
+        } else {
+          row.parentTaskId = parentId;
+        }
+      }
+
+      if (row.assigneeEmail) {
+        const userId = usersByEmail.get(row.assigneeEmail.trim().toLowerCase());
+        if (!userId) {
+          warnings.push({
+            row: row.row,
+            field: 'Assignee Email',
+            message: 'Assignee was not found. The task will be imported unassigned.',
+            value: row.assigneeEmail
+          });
+        } else {
+          row.assigneeUserId = userId;
+        }
+      }
+    }
+  }
+
+  private async getImportBoardColumns(tenantId: string, projectId: string, boardId?: string) {
+    const board = await this.prisma.board.findFirst({
+      where: {
+        tenantId,
+        projectId,
+        id: boardId
+      },
+      orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
+      select: {
+        columns: {
+          select: {
+            id: true,
+            name: true,
+            status: true
+          },
+          orderBy: [{ sortOrder: 'asc' }]
+        }
+      }
+    });
+
+    return board?.columns ?? [];
+  }
+
+  private async upsertImportLabel(tenantId: string, name: string) {
+    const trimmed = name.trim();
+    const existing = await this.prisma.label.findFirst({
+      where: {
+        tenantId,
+        name: { equals: trimmed, mode: 'insensitive' }
+      },
+      select: labelSelect
+    });
+    if (existing) return existing;
+
+    return this.prisma.label.create({
+      data: {
+        tenantId,
+        name: trimmed,
+        color: '#FACC15'
+      },
+      select: labelSelect
+    });
+  }
+
+  private getCellText(cell: ExcelJS.Cell) {
+    const value = cell.value;
+    if (value === null || value === undefined) return '';
+    if (value instanceof Date) return value.toISOString().slice(0, 10);
+    if (typeof value === 'object') {
+      if ('text' in value && typeof value.text === 'string') return value.text.trim();
+      if ('richText' in value && Array.isArray(value.richText)) {
+        return value.richText.map((part) => part.text).join('').trim();
+      }
+      if ('result' in value) return String(value.result ?? '').trim();
+      if ('hyperlink' in value && 'text' in value) return String(value.text ?? value.hyperlink ?? '').trim();
+    }
+    return String(value).trim();
+  }
+
+  private getCellNumber(
+    cell: ExcelJS.Cell,
+    row: number,
+    field: string,
+    errors: TaskImportRowIssueDto[]
+  ) {
+    const value = cell.value;
+    if (value === null || value === undefined || value === '') return undefined;
+    const raw = this.getCellText(cell);
+    if (!raw) return undefined;
+    const parsed = Number(raw);
+    if (!Number.isFinite(parsed) || parsed < 0) {
+      errors.push({ row, field, message: `${field} must be a positive number`, value: raw });
+      return undefined;
+    }
+    return parsed;
+  }
+
+  private getCellInteger(
+    cell: ExcelJS.Cell,
+    row: number,
+    field: string,
+    errors: TaskImportRowIssueDto[]
+  ) {
+    const parsed = this.getCellNumber(cell, row, field, errors);
+    if (parsed === undefined) return undefined;
+    if (!Number.isInteger(parsed)) {
+      errors.push({ row, field, message: `${field} must be a whole number`, value: String(parsed) });
+      return undefined;
+    }
+    return parsed;
+  }
+
+  private getCellDate(
+    cell: ExcelJS.Cell,
+    row: number,
+    field: string,
+    errors: TaskImportRowIssueDto[]
+  ) {
+    const value = cell.value;
+    if (value === null || value === undefined || value === '') return undefined;
+    if (value instanceof Date && !Number.isNaN(value.getTime())) {
+      return value.toISOString().slice(0, 10);
+    }
+    if (typeof value === 'number') {
+      const date = new Date(Math.round((value - 25569) * 86400 * 1000));
+      if (!Number.isNaN(date.getTime())) return date.toISOString().slice(0, 10);
+    }
+    const raw = this.getCellText(cell);
+    if (!raw) return undefined;
+    const parsed = new Date(`${raw}T00:00:00.000Z`);
+    if (Number.isNaN(parsed.getTime())) {
+      errors.push({ row, field, message: `${field} must use YYYY-MM-DD`, value: raw });
+      return undefined;
+    }
+    return parsed.toISOString().slice(0, 10);
+  }
+
+  private normalizeImportStatus(
+    value: string,
+    fallback: TaskStatus,
+    row: number,
+    errors: TaskImportRowIssueDto[]
+  ) {
+    if (!value) return fallback;
+    const aliases: Record<string, TaskStatus> = {
+      backlog: TaskStatus.BACKLOG,
+      todo: TaskStatus.TODO,
+      'to do': TaskStatus.TODO,
+      ready: TaskStatus.TODO,
+      progress: TaskStatus.IN_PROGRESS,
+      'in progress': TaskStatus.IN_PROGRESS,
+      review: TaskStatus.REVIEW,
+      testing: TaskStatus.TESTING,
+      qa: TaskStatus.TESTING,
+      done: TaskStatus.DONE,
+      complete: TaskStatus.DONE,
+      completed: TaskStatus.DONE
+    };
+    const normalized = this.normalizeImportToken(value);
+    const enumValue = aliases[normalized] ?? Object.values(TaskStatus).find(
+      (status) => this.normalizeImportToken(status) === normalized
+    );
+    if (!enumValue) {
+      errors.push({ row, field: 'Status', message: 'Status is not supported', value });
+      return fallback;
+    }
+    return enumValue;
+  }
+
+  private normalizeImportPriority(
+    value: string,
+    fallback: TaskPriority,
+    row: number,
+    errors: TaskImportRowIssueDto[]
+  ) {
+    if (!value) return fallback;
+    const normalized = this.normalizeImportToken(value);
+    const enumValue = Object.values(TaskPriority).find(
+      (priority) => this.normalizeImportToken(priority) === normalized
+    );
+    if (!enumValue) {
+      errors.push({ row, field: 'Priority', message: 'Priority is not supported', value });
+      return fallback;
+    }
+    return enumValue;
+  }
+
+  private normalizeImportType(
+    value: string,
+    fallback: TaskType,
+    row: number,
+    errors: TaskImportRowIssueDto[]
+  ) {
+    if (!value) return fallback;
+    const normalized = this.normalizeImportToken(value);
+    const enumValue = Object.values(TaskType).find((type) => this.normalizeImportToken(type) === normalized);
+    if (!enumValue) {
+      errors.push({ row, field: 'Type', message: 'Type is not supported', value });
+      return fallback;
+    }
+    return enumValue;
+  }
+
+  private normalizeImportToken(value: string) {
+    return value.trim().toLowerCase().replace(/[_-]+/g, ' ').replace(/\s+/g, ' ');
   }
 
   private async resolveDefaultBoardColumnId(tenantId: string, projectId: string, status: TaskStatus) {

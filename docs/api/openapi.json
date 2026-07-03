@@ -15919,6 +15919,95 @@
         ]
       }
     },
+    "/api/v1/tasks/import-template": {
+      "get": {
+        "operationId": "Tasks_importTemplate",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "XLSX workbook template"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Download the task Excel import template",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
+    "/api/v1/tasks/import": {
+      "post": {
+        "operationId": "Tasks_importTasks",
+        "parameters": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "projectId",
+                  "file"
+                ],
+                "properties": {
+                  "projectId": {
+                    "type": "string"
+                  },
+                  "boardId": {
+                    "type": "string"
+                  },
+                  "dryRun": {
+                    "type": "string",
+                    "enum": [
+                      "true",
+                      "false"
+                    ]
+                  },
+                  "defaultStatus": {
+                    "type": "string"
+                  },
+                  "defaultPriority": {
+                    "type": "string"
+                  },
+                  "defaultType": {
+                    "type": "string"
+                  },
+                  "file": {
+                    "type": "string",
+                    "format": "binary"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportTasksResponseDto"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Validate or import tasks from an Excel workbook",
+        "tags": [
+          "tasks"
+        ]
+      }
+    },
     "/api/v1/tasks/bulk": {
       "post": {
         "operationId": "Tasks_bulkOperation",
@@ -59939,6 +60028,121 @@
             "type": "boolean"
           }
         }
+      },
+      "TaskImportRowIssueDto": {
+        "type": "object",
+        "properties": {
+          "row": {
+            "type": "number"
+          },
+          "field": {
+            "type": "string"
+          },
+          "message": {
+            "type": "string"
+          },
+          "value": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "row",
+          "message"
+        ]
+      },
+      "ImportedTaskDto": {
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          },
+          "title": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "BACKLOG",
+              "TODO",
+              "IN_PROGRESS",
+              "REVIEW",
+              "TESTING",
+              "DONE",
+              "CANCELLED"
+            ]
+          },
+          "priority": {
+            "type": "string",
+            "enum": [
+              "LOW",
+              "MEDIUM",
+              "HIGH",
+              "URGENT",
+              "CRITICAL"
+            ]
+          },
+          "boardColumnId": {
+            "type": "object"
+          }
+        },
+        "required": [
+          "id",
+          "key",
+          "title",
+          "status",
+          "priority"
+        ]
+      },
+      "ImportTasksResponseDto": {
+        "type": "object",
+        "properties": {
+          "dryRun": {
+            "type": "boolean"
+          },
+          "totalRows": {
+            "type": "number"
+          },
+          "validRows": {
+            "type": "number"
+          },
+          "createdCount": {
+            "type": "number"
+          },
+          "skippedCount": {
+            "type": "number"
+          },
+          "errors": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskImportRowIssueDto"
+            }
+          },
+          "warnings": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/TaskImportRowIssueDto"
+            }
+          },
+          "tasks": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ImportedTaskDto"
+            }
+          }
+        },
+        "required": [
+          "dryRun",
+          "totalRows",
+          "validRows",
+          "createdCount",
+          "skippedCount",
+          "errors",
+          "warnings",
+          "tasks"
+        ]
       },
       "BulkTaskOperationDto": {
         "type": "object",
