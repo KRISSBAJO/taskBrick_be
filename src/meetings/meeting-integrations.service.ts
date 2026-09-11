@@ -539,6 +539,7 @@ export class MeetingIntegrationsService {
 
   @Cron(CronExpression.EVERY_MINUTE)
   async scheduledReminderWorker() {
+    if (process.env.BACKGROUND_JOBS_ENABLED === 'false') return;
     try {
       await this.processDueReminderJobs(25);
     } catch (error) {

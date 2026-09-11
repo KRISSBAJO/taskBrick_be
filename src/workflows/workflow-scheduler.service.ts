@@ -10,6 +10,7 @@ export class WorkflowSchedulerService {
 
   @Cron(CronExpression.EVERY_MINUTE)
   async enqueueDueSchedules() {
+    if (process.env.BACKGROUND_JOBS_ENABLED === 'false') return;
     try {
       await this.workflowsService.enqueueDueScheduledWorkflows({
         ipAddress: null,
